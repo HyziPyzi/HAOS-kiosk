@@ -1,97 +1,44 @@
-################################################################################
-# Add-on: HAOS Kiosk Display (haoskiosk)
-# File: Dockerfile
-# Version: 1.3.0
-# Copyright Jeff Kosowsky
-# Date: February 2026
-################################################################################
+# Official HA Debian base, verified for linux/amd64 on 2026-09-30.
+# Supervisor 2026.04+ no longer supplies BUILD_FROM; use an explicit default.
+ARG BUILD_FROM=ghcr.io/home-assistant/base-debian:trixie@sha256:01e153da2c2579f2cf5010901da7bc31b1dd035921ea46ccaff22e521efa74a7
+FROM ${BUILD_FROM}
 
-ARG BUILD_FROM
-FROM $BUILD_FROM
+ARG BUILD_VERSION=2.0.0
+ARG BUILD_ARCH=amd64
+ENV ADDON_VERSION=${BUILD_VERSION} DISPLAY=:0 LANG=C.UTF-8
+LABEL io.hass.version="${BUILD_VERSION}" io.hass.type="app" io.hass.arch="${BUILD_ARCH}"
 
-ARG BUILD_VERSION
-ENV ADDON_VERSION=${BUILD_VERSION}
+# modesetting is included in xserver-xorg-core. No desktop environment.
+RUN test "$(dpkg --print-architecture)" = amd64 \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates curl gnupg \
+        xserver-xorg-core xserver-xorg-input-libinput \
+        x11-xserver-utils x11-utils x11-xkb-utils xauth \
+        libgl1-mesa-dri libegl1 libgl1 libglx-mesa0 libdrm2 \
+        mesa-utils vainfo intel-media-va-driver \
+        xdotool xinput libinput-tools udev evtest \
+        openbox onboard unclutter-xfixes scrot x11vnc \
+        fonts-dejavu-core fonts-noto-core fonts-noto-color-emoji \
+        dbus dbus-x11 dconf-cli libglib2.0-bin gsettings-desktop-schemas \
+        util-linux bsdextrautils procps psmisc iproute2 iputils-ping tree libnotify-bin \
+        pulseaudio-utils libasound2-plugins alsa-utils \
+        python3 python3-xlib python3-aiohttp \
+    && install -d -m 0755 /etc/apt/keyrings \
+    && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub -o /tmp/google-signing-key.pub \
+    && gpg --batch --dearmor -o /etc/apt/keyrings/google-chrome.gpg /tmp/google-signing-key.pub \
+    && chmod 0644 /etc/apt/keyrings/google-chrome.gpg \
+    && printf '%s\n' 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main' > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends google-chrome-stable \
+    && command -v google-chrome-stable \
+    && google-chrome-stable --version \
+    && rm -f /tmp/google-signing-key.pub \
+    && rm -rf /var/lib/apt/lists/*
 
-#===============================================================================
-##### Install X, Browser and all necessary dependencies
-RUN apk update && apk add --no-cache \
-## Xserver and graphics
-     xorg-server \
-     xf86-video-modesetting \
-     mesa-dri-gallium \
-     mesa-egl \
-     mesa-gles \
-     mesa-gl \
-     libdrm \
-### X utils
-     xdotool \
-     xinput \
-     xrandr \
-     xset \
-#     xev \
-     libxkbcommon \
-     setxkbmap \
-### Input, udev
-     xf86-input-libinput \
-     libinput \
-#     libinput-tools \
-     udev \
-     libinput-udev \
-     libevdev \
-     evtest \
-### Window, mouse, keyboard management
-     openbox \
-     onboard \
-     unclutter-xfixes \
-     ttf-dejavu \
-### Linux utils
-     bash \
-     util-linux \
-     patch \
-     scrot \
-### Full Timezone info
-     icu-data-full \
-### Python libraries
-    py3-pip \
-    py3-xlib \
-### Sound
-     pulseaudio-utils \
-#     alsa-utils alsa-plugins-pulse \
-### Video
-#     gstreamer-tools \
-#     gst-libav \
-### VNC (for debugging) - run: x11vnc -display :0 -forever & \
-      x11vnc \
-# Browser
-#    luakit \
-   && apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/v3.21/community \
-      chromium \
-      font-noto \
-      font-noto-emoji \
-      luakit=2.3.6-r0 \
-   && rm -rf /var/cache/apk/*
-
-#===============================================================================
-
-##### Set the display variable
-ENV DISPLAY=:0
-
-##### Copy over 'xorg.conf.default' and lua 'userconf.lua' file
+WORKDIR /
 COPY xorg.conf.default /etc/X11/
-COPY userconf.lua /root/.config/luakit/
 COPY translations/*.yaml /translations/
-
-COPY run.sh /
-RUN chmod a+x /run.sh
-
-COPY mouse_touch_inputs.py gesture_commands.json /
-COPY rest_server.py /
-COPY browser_ctl.py chromium_watchdog.py /
-RUN pip install --no-cache-dir  --break-system-packages aiohttp #Required for rest_server.py
-
-#### Patches
-# Need to patch 'unique_instance.lua' so that new instance urls overwrite active url rather than add new tab
-COPY unique_instance.patch /usr/share/luakit/lib
-RUN patch -p2 /usr/share/luakit/lib/unique_instance.lua < /usr/share/luakit/lib/unique_instance.patch
-
+COPY run.sh browser_ctl.py chromium_watchdog.py rest_server.py mouse_touch_inputs.py gesture_commands.json /
+RUN chmod 0755 /run.sh
 CMD ["/run.sh"]

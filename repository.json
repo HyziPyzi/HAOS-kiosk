@@ -1,5 +1,5 @@
 {
-  "name": "Welizard HAOS Kiosk Fork",
-  "url": "https://github.com/WeLizard/HAOS-kiosk",
-  "maintainer": "Jeff Kosowsky"
+  "name": "HAOS Kiosk - Chrome DRM (amd64)",
+  "url": "https://github.com/HyziPyzi/HAOS-kiosk",
+  "maintainer": "HyziPyzi"
 }

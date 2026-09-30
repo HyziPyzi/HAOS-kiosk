@@ -55,6 +55,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import ipaddress
+import hmac
 import json
 import logging
 import os
@@ -68,7 +69,9 @@ from contextlib import suppress
 from datetime import datetime
 from functools import wraps
 from typing import Any, Awaitable, cast, Callable, Final, Literal, TypedDict, TypeVar
+from urllib.parse import urlsplit
 from aiohttp import web  #type: ignore[import-not-found] #pylint: disable=import-error
+from browser_ctl import is_valid_url
 
 #-------------------------------------------------------------------------------
 __version__ = "1.3.0"
@@ -83,7 +86,7 @@ __copyright__ = "Copyright 2025 Jeff Kosowsky"
 REST_PORT: int = int(os.getenv("REST_PORT", "8080"))
 REST_IP: str = os.getenv("REST_IP", "127.0.0.1")
 REST_BEARER_TOKEN: str | None = os.getenv("REST_BEARER_TOKEN") or None  # None = no authorization required
-DISPLAY_CONFIG_PATH: str = os.getenv("DISPLAY_CONFIG_PATH", "/config/www/live2d/neiri-slides.json")
+DISPLAY_CONFIG_PATH: str = os.getenv("DISPLAY_CONFIG_PATH", "/config/display/slides.json")
 
 # Note setting True is a real security risk since it allows all commands and tokens
 # If just want all programs, set COMMAND_WHITELIST_REGEX to "*"
@@ -240,7 +243,7 @@ EDITOR_HTML = """<!doctype html>
     const saveBtn = document.getElementById('saveBtn');
     const validateBtn = document.getElementById('validateBtn');
 
-    tokenEl.value = window.localStorage.getItem('haoskiosk.editor.token') || '';
+    tokenEl.value = ''; // Token is kept only in this page, never in storage.
 
     function headers() {
       const headers = { 'Content-Type': 'application/json' };
@@ -255,7 +258,7 @@ EDITOR_HTML = """<!doctype html>
     }
 
     function persistToken() {
-      window.localStorage.setItem('haoskiosk.editor.token', tokenEl.value.trim());
+      // Do not persist the API token in browser storage.
     }
 
     async function loadConfig() {
@@ -323,7 +326,7 @@ EDITOR_HTML = """<!doctype html>
 ALLOWED_PATHS = {"/bin", "/usr/bin", "/usr/local/bin"} # Executables must be in these directories
 
 ## Commands that are white-listed -- all others are blocked (Note: set to ".*" to allow all or "" to block all)
-DEFAULT_COMMAND_WHITELIST_REGEX = r"cat|chromium|chromium-browser|date|dbus-send|echo|false|grep|head|ls|luakit|notify-send|ping|ping6|ps|pstree|sleep|tail|test|top|tree|xdotool|xset"
+DEFAULT_COMMAND_WHITELIST_REGEX = r"^$"
 COMMAND_WHITELIST_REGEX = os.getenv("COMMAND_WHITELIST", DEFAULT_COMMAND_WHITELIST_REGEX).strip()
 
 COMPILED_WHITELIST_REGEX: re.Pattern[str] | None = None
@@ -370,21 +373,6 @@ DANGEROUS_SHELL_TOKENS: set[str] = { # Disallowed shell tokens if just expecting
     ";", "&&", "||", "|", "&", "`", "$(", "${", ">", "<", "2>", "&>", "*?", "[",
 }
 
-VALID_URL_REGEX: Final[re.Pattern[str]] = re.compile(
-    r'^(https?://)?'                  # Optional scheme
-    r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # Domain
-    r'localhost|'                     # localhost
-    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # IPv4
-    r'(?::\d{1,5})?'                  # Optional port (1-65535 max, but \d+ is fine)
-    r'(?:/?|[/?][^\s]*)?$',           # Path/query/fragment (allows #fragment, rejects spaces)
-    re.IGNORECASE
-)
-
-def is_valid_url(url: str) -> bool:
-    """Validate URL format (allows http://, https://, bare domain/IP, path, query, fragment)."""
-    return bool(url == 'about:blank' or VALID_URL_REGEX.fullmatch(url.strip()))
-
-
 def normalize_display_config(config: Any) -> dict[str, Any]:
     """Validate the display editor JSON structure without hardcoding semantics."""
     if not isinstance(config, dict):
@@ -430,6 +418,8 @@ try:
     ipaddress.ip_address(REST_IP)
     if not 1024 <= REST_PORT <= 65535:
         raise ValueError("REST IP Port must be integer 1024-65535")
+    if not ipaddress.ip_address(REST_IP).is_loopback and not REST_BEARER_TOKEN:
+        raise ValueError("REST binding outside loopback requires rest_bearer_token")
 except Exception as e:
     logging.error("Invalid configuration: %s", e)
     sys.exit(1)
@@ -525,16 +515,16 @@ async def execute_command(command: str|list[str], *, timeout: int | None = None,
         cmd_str = command.strip()
         if not cmd_str:
             return {"success": False, "error": "empty command string"}
-        needs_shell = bool(re.search(r'["`\' ]|\$[^(]', cmd_str))  #Needs shell if quotes, spaces, backslashes, backquotes, environment variables
-        shell = needs_shell or ALLOW_ALL_USER_COMMANDS
+        # User commands are argument vectors; never interpret shell expansions.
+        shell = False
 
     if not allow_command:  # Check that command_allowed
         allowed, reason = is_command_allowed(cmd_str)
         if not allowed:
-            logging.error("[%s] COMMAND BLOCKED (%s): %s", log_prefix, reason, repr(command))
+            logging.error("[%s] User command blocked", log_prefix)
             return {"success": False, "error": f"Command blocked: {reason}"}
 
-    logging.info("[%s] Running (%s): %s", log_prefix, "shell" if shell else "exec", repr(command))
+    logging.info("[%s] Running command (arguments omitted)", log_prefix)
 
     async with _command_semaphore:
         if shell:
@@ -566,12 +556,8 @@ async def execute_command(command: str|list[str], *, timeout: int | None = None,
         stdout_str = stdout.decode(errors="replace").strip() if stdout else ""
         stderr_str = stderr.decode(errors="replace").strip() if stderr else ""
 
-        if logger.getEffectiveLevel() <= logging.INFO and print_stdout:  # Print stdout
-            for line in stdout_str.splitlines():  # Pretty-print output (HA style)
-                print(" " + line)
-        if logger.getEffectiveLevel() <= logging.ERROR and print_stderr:  # Print stderr
-            for line in stderr_str.splitlines():  # Pretty-print output (HA style)
-                print(" " + line)
+        # Responses remain available to the authorized caller. Do not copy
+        # command output, URLs or browser target/session data into app logs.
 
         success = proc.returncode == 0
         if not success:
@@ -709,14 +695,12 @@ HTTP_GET_COMMANDS = {  # Commands using GET (rather than POST) method
 async def handle_launch_url(data: Payload) -> dict[str, Any]:
     """Launch browser with given URL."""
     url = str(data["url"]) if data.get("url") else DEFAULT_LAUNCH_URL
-    asyncio.create_task(
-        execute_command(
+    result = await execute_command(
             ["python3", "/browser_ctl.py", "launch_url", url],
             log_prefix="launch_url",
             allow_command=True,
+            timeout=SHORT_TIMEOUT,
         )
-    )  # Run in the background
-    result = {"success": True, "stdout": "", "stderr": "", "returncode": 0}
     return {"success": result["success"], "result": result}
 
 @register_function("refresh_browser")
@@ -1014,6 +998,7 @@ async def handle_mute_audio(data: Payload) -> dict[str, Any]:  # pylint: disable
 async def handle_unmute_audio(data: Payload) -> dict[str, Any]:
     """Unmute the default audio sink, optionally set volume level (0-150%)."""
     set_volume = data.get("volume")
+    volumes: dict[str, int] = {}
 
     commands=[["pactl", "set-sink-mute", "@DEFAULT_SINK@", "0"]]  # Unmute first
     if set_volume is not None:  # If volume provided, set it after unmute
@@ -1101,22 +1086,36 @@ async def security_middleware(
     If the token is missing or invalid → returns HTTP 401 immediately.
     Otherwise passes the request to the next handler.
     """
-    remote_ip = request.remote or request.headers.get("X-Forwarded-For", "unknown").split(",")[0].strip()
+    remote_ip = request.remote or "unknown"
     logging.debug("[request] %s %s from %s", request.method, request.path, remote_ip)  # Log every request for debug
 
     cmd_name = getattr(handler, "cmd_name", None)
     if cmd_name is None:
         return await handler(request)
 
+    # Allow our editor on the same literal IP/localhost origin; reject foreign
+    # pages and DNS rebinding. HA rest_command has no Origin header.
+    origin = request.headers.get("Origin")
+    if origin:
+        hostname = urlsplit(origin).hostname or ""
+        try:
+            known_host = ipaddress.ip_address(hostname).is_loopback or hostname == REST_IP
+        except ValueError:
+            known_host = hostname == "localhost"
+        if not known_host or origin != f"{request.scheme}://{request.host}":
+            return web.json_response({"success": False, "error": "Foreign browser origin is disabled"}, status=403)
+    if request.method == "POST" and request.can_read_body and request.content_type != "application/json":
+        return web.json_response({"success": False, "error": "Use application/json"}, status=415)
+
     if REST_BEARER_TOKEN:
         auth_header = request.headers.get("Authorization", "")
-        if auth_header != f"Bearer {REST_BEARER_TOKEN}":
+        if not hmac.compare_digest(auth_header.encode(), f"Bearer {REST_BEARER_TOKEN}".encode()):
             logging.warning("[auth] Invalid REST_BEARER_TOKEN from %s", remote_ip)
             return web.json_response(
                 {"success": False, "error": "Invalid or missing REST_BEARER_TOKEN Authorization token"},
                 status=401,)
 
-    if cmd_name in PROTECTED_COMMANDS or cmd_name == EDITOR_CONFIG_COMMAND:
+    if cmd_name:
         if  remote_ip not in ("127.0.0.1", "::1", "localhost") and REST_BEARER_TOKEN is None:
             logging.warning("[security] Blocked protected REST command '%s' from non-localhost IP: %s", cmd_name, remote_ip)
             return web.json_response({
@@ -1218,7 +1217,7 @@ async def main() -> None:
     app = await create_app()
     logging.info("Starting HAOS Kiosk REST server on http://%s:%s", REST_IP, REST_PORT)
 
-    runner = web.AppRunner(app)
+    runner = web.AppRunner(app, access_log=None)
     await runner.setup()
     site = web.TCPSite(runner, REST_IP, REST_PORT)
 

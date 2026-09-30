@@ -367,6 +367,7 @@ from collections.abc import Hashable
 from datetime import datetime
 from functools import wraps
 from typing import Any, cast, Callable, ClassVar, Final, Iterator, NotRequired, Protocol, Self, Sequence, Type, TypeAlias, TypedDict, TypeVar
+from browser_ctl import is_valid_url
 from Xlib import display                  #type: ignore[import-untyped] #pylint: disable=import-error
 from Xlib.xobject.drawable import Window  #type: ignore[import-untyped] #pylint: disable=import-error
 #-------------------------------------------------------------------------------
@@ -467,7 +468,7 @@ if input_args.file is not None:
 ALLOWED_PATHS = {"/bin", "/usr/bin", "/usr/local/bin"} # Executables must be in these directoriesp
 
 ## Commands that are white-listed -- all others are blocked (Note: set to ".*" to allow all or "" to block all)
-DEFAULT_COMMAND_WHITELIST_REGEX = r"cat|chromium|chromium-browser|date|dbus-send|echo|false|grep|head|ls|luakit|notify-send|ping|ping6|ps|pstree|sleep|tail|test|top|tree|xdotool|xset"
+DEFAULT_COMMAND_WHITELIST_REGEX = r"^$"
 COMMAND_WHITELIST_REGEX = os.getenv("COMMAND_WHITELIST", DEFAULT_COMMAND_WHITELIST_REGEX).strip()
 
 COMPILED_WHITELIST_REGEX: re.Pattern[str] | None = None
@@ -510,43 +511,6 @@ SAFE_REDIRECT_REGEX: Final[re.Pattern[str]] = re.compile(
 SEPARATORS: frozenset[str] = frozenset({ "&&", "||", ";", "|", "&", "$(", "${", "`", "(", "{", "[[", "((" })
 SEP_REGEX: Final[re.Pattern[str]] = re.compile('(?:' + '|'.join(re.escape(op) for op in sorted(SEPARATORS, key=len, reverse=True)) + ')')
 
-VALID_URL_REGEX: Final[re.Pattern[str]] = re.compile(
-    r'^(https?://)?'                  # Optional scheme
-    r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # Domain
-    r'localhost|'                     # localhost
-    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # IPv4
-    r'(?::\d{1,5})?'                  # Optional port (1-65535 max, but \d+ is fine)
-    r'(?:/?|[/?][^\s]*)?$',           # Path/query/fragment (allows #fragment, rejects spaces)
-    re.IGNORECASE
-)
-
-def is_valid_url(url: str) -> bool:
-    """Validate URL format (allows http://, https://, bare domain/IP, path, query, fragment)."""
-    return bool(url == 'about:blank' or VALID_URL_REGEX.fullmatch(url.strip()))
-
-#-------------------------------------------------------------------------------
-#### Globals
-GESTURE_SEP = "_"
-_registry_lock: threading.RLock = threading.RLock()
-
-# ----------------------------------------------------------------------
-# Internally-defined, User callable functions
-
-# Registry of internal functions
-FunctionRegistry: dict[str, Callable[..., Any]] = {}
-
-# Optional custom error message for validation
-class ValidatorSpec(TypedDict, total=False):
-    """ Class that bundles validation test and error messages for registry function validation tests"""
-    test: Callable[[Any], bool]
-    err: str
-
-# Accept either callable or dict
-Validator = Callable[[Any], bool] | ValidatorSpec
-
-Payload = dict[str, Any]
-F = TypeVar('F', bound=Callable[..., Any])
-prefix: str | None  = "kiosk"
 def register_function(
         name: str,
         *,
@@ -1851,7 +1815,7 @@ class GestureCommand:
                 if cmd[0] in FunctionRegistry:
                     function = FunctionRegistry[cmd[0]]
                     arguments = cmd[1:]
-                    descr = f"Internal List function: {cmd!r}"
+                    descr = f"Internal function: {cmd[0]} (arguments omitted)"
                     def run_function(time_out: int | None = None, func: Callable[..., None] = function, args: list[str] = arguments, descr: str = descr) -> None:
                         debug(2, descr)
                         func(*args, timeout=time_out)
@@ -1884,7 +1848,7 @@ class GestureCommand:
             if cmd_name in FunctionRegistry:
                 function = FunctionRegistry[cmd_name]
                 arguments = parts[1:]
-                descr = f"Internal String function: {cmd}"
+                descr = f"Internal function: {cmd_name} (arguments omitted)"
                 def run_function(time_out: int | None = None,  #pylint: disable=function-redefined #This is a mypy and pylint bug
                                  func: Callable[..., None] = function, args: list[str] = arguments, descr: str = descr) -> None:
                     debug(2, descr)
@@ -1931,7 +1895,7 @@ class GestureCommand:
             if prior_match is not None:
                 debug(1, f"WARNING: Gesture masked by earlier entry ({"loading anyway" if add_overridden else "dropped"}): {gesture_cmd.sprint_gesture()} < {prior_match.sprint_gesture()}")
             if prior_match is None or add_overridden:
-                debug(4, f"Loaded command for gesture: {gesture_cmd}")
+                debug(4, f"Loaded gesture: {gesture_cmd.sprint_friendly_gesture()}")
                 return True
 
         except Exception as e:
@@ -2398,7 +2362,7 @@ class GestureSequence(RegistryMixin):
         gesture_command_match = gesture_command.lookup()  # Lookup gesture in command dictionary
         if gesture_command_match is not None:  #Match found
             if gesture_command_match.cmds is not None:
-                debug(1, f">ACTION: gesture={gesture_command_match} cmds={gesture_command_match.sprint_commands()}")
+                debug(1, f">ACTION: gesture={gesture_command_match.sprint_friendly_gesture()} (arguments omitted)")
 
                 # Run commands in a separate thread so as not to slow down event parsing loop
                 threading.Thread(target=execute_commands, args=(gesture_command_match.cmds_dict,), daemon=True).start()
@@ -2689,9 +2653,9 @@ def _run_subprocess(args: str | Sequence[str], *, shell: bool | None = None, tim
             timeout = timeout,
             check   = False,
         )
-        if result.stdout.strip():
+        if prog != "python3" and result.stdout.strip():
             debug(2, "--- STDOUT ---\n" + result.stdout.rstrip())
-        if result.stderr.strip():
+        if prog != "python3" and result.stderr.strip():
             debug(2, "--- STDERR ---\n" + result.stderr.rstrip())
         if result.returncode != 0:
             raise CommandError(f"Command failed (exit={result.returncode}): {description}")

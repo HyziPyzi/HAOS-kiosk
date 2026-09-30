@@ -2,10 +2,10 @@
 configuration:
   ha_username:
     name: "HA Username"
-    description: "Home Assistant login user name [Required]"
+    description: "Optional Home Assistant user for automatic login; manual login is also supported."
   ha_password:
     name: "HA Password"
-    description: "Home Assistant login password [Required]"
+    description: "Optional Home Assistant password for automatic login; never logged."
   ha_url:
     name: "HA URL"
     description: |
@@ -31,13 +31,11 @@ configuration:
   browser_engine:
     name: "Browser Engine"
     description: |
-      Choose which browser runtime to launch. `chromium` is recommended for
-      modern dashboards, WebGL, emoji rendering, and touch-heavy UIs.
-      Switch to `luakit` if you need the original lightweight behavior or
-      want to compare compatibility. [Default: chromium]
+      Official Google Chrome Stable on Debian. chromium is a compatibility
+      alias for the same Google Chrome binary. [Default: chrome]
     items:
-      chromium: "Chromium"
-      luakit: "Luakit"
+      chrome: "Google Chrome Stable"
+      chromium: "Google Chrome Stable (compatibility alias)"
   screen_timeout:
     name: "Screen Timeout"
     description: "Time in seconds until screen blanks; 0 for never [Default: 0]"
@@ -81,7 +79,7 @@ configuration:
       show cursor. [Default: 5 seconds]
   keyboard_layout:
     name: "Keyboard Layout"
-    description: "Set the keyboard layout and language [Default: us]"
+    description: "X11 keyboard layout [Default: pl]"
   onscreen_keyboard:
     name: "Onscreen Keyboard"
     description: "Display an Onscreen Keyboard for text input [Default: True]"
@@ -113,15 +111,15 @@ configuration:
     name: "REST IP address"
     description: |
       Listening IP address for REST API server [Default: `127.0.0.1`]
-      CAUTION: Set to `0.0.0.0` to listen from anywhere BUT SECURITY RISK.
+      Binding outside localhost requires a bearer token. Use only a trusted LAN.
   rest_port:
     name: "REST Port"
     description: |
       Listening port for REST API server (1024-49151) [Default: 8080]
-  rest_authorization_token:
+  rest_bearer_token:
     name: "REST Authorization Token"
     description: |
-      Optional authorization token for REST API. [Default: ""]
+      Optional on localhost; required when listening outside localhost. [Default: ""]
       If set add the line `-H "Authorization: Bearer <REST_BEARER_TOKEN>"`
       to your REST API calls.
   gestures:
@@ -143,10 +141,9 @@ configuration:
   vnc_server:
     name: "VNC Server Password"
     description: |
-      Launch VNC Server on port 5900 if password non-blank. If password
-      set to '-', then don't require any password. *Use with caution*
+      Empty disables VNC. A password enables VNC on localhost:5900 only;
+      access through an SSH tunnel. Passwordless VNC is disabled.
   debug_mode:
     name: "Debug Mode"
     description: |
-      Launch X and Openbox but not Luakit browser. [Default: False]
-      Manually access using: sudo docker -exec -it addon_haoskiosk bash
+      Launch X and Openbox without Chrome. [Default: False]

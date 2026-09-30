@@ -176,3 +176,14 @@
 ## 0.9.6 – March 2025
 
 - Initial private release
+# 2.0.0 — Chrome DRM fork
+
+- amd64 only; official HA Debian Trixie/glibc base pinned by digest.
+- Google Chrome Stable installed from signed Google APT; no redistributed CDM or browser binaries.
+- Chrome engine with chromium alias, persistent profile and normal CDP shutdown.
+- Existing HDMI selection, libinput gestures, Openbox, REST and Supervisor audio retained.
+- Dynamic video access avoids requiring card1; Intel Mesa/media driver included.
+- Loopback DevTools/VNC, token required for nonlocal REST, optional manual HA login.
+- Safe startup diagnostics; watchdog refreshes only HA pages.
+- Local build, lint, Supervisor schema, X11/CDP, profile restart and Widevine EME validation.
+- Physical NUC HDMI/i915/audio and service license playback remain untested.

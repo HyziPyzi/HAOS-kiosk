@@ -1,0 +1,26 @@
+name: Validate Chrome DRM app
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build amd64 app locally (no image publication)
+        run: docker build --platform linux/amd64 --build-arg BUILD_VERSION=2.0.0 --build-arg BUILD_ARCH=amd64 -t haoskiosk-chrome:test haoskiosk
+      - name: Dockerfile lint
+        run: docker run --rm --entrypoint hadolint -v "$PWD:/src:ro" hadolint/hadolint:latest-alpine --ignore DL3008 /src/haoskiosk/Dockerfile
+      - name: Build local test environment
+        run: docker build -f tests/Dockerfile -t haoskiosk-chrome:checks .
+      - name: Syntax, security, X11 Chrome, profile persistence and Widevine EME
+        run: docker run --rm -v "$PWD:/src:ro" haoskiosk-chrome:checks
+      - name: Validate app with stable Supervisor
+        run: docker run --rm --entrypoint python3 -v "$PWD:/src:ro" ghcr.io/home-assistant/amd64-hassio-supervisor:2026.09.3 /src/tests/validate_supervisor.py
+      - name: Documentation copies
+        run: |
+          cmp README.md haoskiosk/README.md
+          cmp README.md haoskiosk/DOCS.md

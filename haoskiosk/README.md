@@ -1,997 +1,183 @@
-# HAOS-kiosk
-
-Display HA dashboards in kiosk mode directly on your HAOS server.
-
-## Welizard Chromium Fork
-
-This repository is the `WeLizard` Chromium-first fork of the original
-HAOS-kiosk project.
-
-- Fork repo: <https://github.com/WeLizard/HAOS-kiosk>
-- Upstream repo: <https://github.com/puterboy/HAOS-kiosk>
-
-## Upstream Author: Jeff Kosowsky (base version: 1.3.0, February 2026)
-
-## Description
-
-Launches X-Windows on local HAOS server followed by OpenBox window manager
-and a kiosk browser starting with your configured default Home Assistant
-dashboard.
-
-The Welizard fork targets Chromium as the primary runtime for modern HA
-dashboards, WebGL, emoji rendering, and richer UI flows on local touch
-displays.
-
-- Standard mouse, touchscreen, and keyboard interactions should work
-  automatically as well as audio
-- Supports touchscreens gestures, screen rotation, and onscreen keyboard
-- Includes REST API that can be used to control the display state and to
-  send new URLs (e.g., dashboards) to the kiosk browser.
-
-You can press `ctl-R` at any time to refresh ( reload) the browser. \
-Alternatively, you can right click (or long press touchscreen) to access
-browser menu that includes options for page `Back`, `Forward`, `Stop`, and
-`Reload`.
-
-**NOTE:** You must enter your HA username and password in the
-*Configuration* tab for the Add-on to start.
-
-**NOTE:** The Add-on requires a valid, connected display in order to
-start.\
-If your display does not show up, try rebooting and restarting the Add-on
-with the display attached
-
-**NOTE:** Should support any standard mouse, touchscreen, keypad and
-touchpad so long as its `/dev/input/eventN` number is less than 25.
-
-**NOTE:** If you encounter issues with the Add-on, please first check the
-HAOSKiosk github
-[issues page](https://github.com/WeLizard/HAOS-kiosk/issues) (open and
-closed), then try the testing branch (add the following url to the
-repository: https://github.com/WeLizard/HAOS-kiosk). If still
-please file an
-[issue on github](https://github.com/WeLizard/HAOS-kiosk/issues) and
-\*\*include full details of your setup (including computer hardware and
-display type details)and what you did along with a complete log.
-
-You can also use the `screenshot` REST API or keybinding (`Ctl+Alt+k`) or
-touch gesture (Quadruple 3 finger tap) to save a screenshot to
-`/media/screenshots`
-
-### If you appreciate my efforts:
-
-[![Buy Me a Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/puterboy)
-
-______________________________________________________________________
-
-## Installation
-
-1. Click the **ADD ADD-ON REPOSITORY** button below.
-
-   [![Open your Home Assistant instance and show the add Add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FWeLizard%2FHAOS-kiosk)
-
-   - Click **Add → Close** (You might need to enter the **internal IP
-     address** of your Home Assistant instance first) *or* go to the
-     **Add-on store**.
-   - Click **⋮ → Repositories**
-   - Fill in `https://github.com/WeLizard/HAOS-kiosk`
-   - Click **Add → Close**
-
-2. Click on the Add-on, press **Install** and wait until the Add-on is
-   installed.
-
-3. You must enter your HA username and password in the **Configuration**
-   tab.
-
-4. Press **Start** to run the Add-on.
-
-**If you are having trouble installing the add-on or getting displays and
-touchscreens working, please see the github issues page
-(https://github.com/WeLizard/HAOS-kiosk/issues)as many common issues have
-already been addressed and resolved**
-
-### Notes
-
-- If screen is not working on an RPi3, try adding the following lines to
-  the `[pi3]` section of your `config.txt` on the boot partition:
-  ```
-  dtoverlay=vc4-fkms-v3d
-  max_framebuffers=2
-  ```
-
-______________________________________________________________________
-
-## Configuration Options
-
-### HA Username [required]
-
-Enter your Home Assistant login name.
-
-### HA Password [required]
-
-Enter your Home Assistant password.
-
-### HA URL
-
-Default: `http://localhost:8123`\
-In general, you shouldn't need to change this since this is running on the
-local server.
-
-### HA Dashboard
-
-Name of starting dashboard.\
-(Default: "" - loads the default `Lovelace` dashboard)
-
-### Login Delay
-
-Delay in seconds to allow login page to load.\
-(Default: 1 second)
-
-### Zoom Level
-
-Level of zoom with `100` being 100%.\
-(Default: 100%)
-
-### Browser Refresh
-
-Time between browser refreshes. Set to `0` to disable.\
-Recommended because with the default RPi config, console errors *may*
-overwrite the dashboard.\
-(Default: 600 seconds)
-
-### Screen Timeout
-
-Time before screen blanks in seconds. Set to `0` to never timeout.
-(Default: 0 seconds - never timeout)
-
-### Output Number
-
-Choose which of the *connected* video output ports to use. Set to `1` to
-use the first connected port. If selected number exceeds number of
-connected ports, then use last valid connected port. (Default: 1)
-
-NOTE: This should always be set to `1` unless you have more than one video
-output device connected. If so, use the logs to see how they are numbered.
-
-### Dark Mode
-
-Prefer dark mode where supported if `True`, otherwise prefer light mode.
-(Default: True). This preference applies to all URLs
-
-NOTE: This preference applies to all URLs unless overridden in the URL. In
-particular, in Home Assistant web pages, This preference for light or dark
-mode only takes effect if the user profile (under 'Theme') is set to
-`auto`. Otherwise, the user profile `light` or `dark` setting takes
-precedence. Similarly, the `Primary` and `Accent` colors set in the profile
-take precedence *unless* `HA Theme` is set.
-
-### HA Theme
-
-Set HA theme to given string. This setting applies only to HA dashboards
-and may override the value of DARK_MODE unless the theme support both dark
-and light variants. See HACS for downloadable themes to use. (Default:
-True)
-
-NOTE: You can force the dark or light default theme specifically for HA
-dashboards by setting the theme to `{"dark":true}` or `{"dark":false}`
-respectively. Similarly, leaving the theme blank (or setting it to `{}` or
-`Home Assistant`) is equivalent to "auto", in which case the default light
-or dark scheme is governed by the value of DARK_MODE.
-
-### HA Sidebar
-
-Presentation of left sidebar menu (device-specific).\
-Options include: (Default: None)
-
-- Full (icons + names)
-- Narrow (icons only)
-- None (hidden)
-
-### Rotate Display
-
-Rotate the display relative to standard view.\
-Options include: (Default: Normal)
-
-- Normal (No rotation)
-- Left (Rotate 90 degrees clockwise)
-- Right (Rotate 90 degrees counter-clockwise)
-- Inverted (Rotate 180 degrees)
-
-### Map Touch Inputs
-
-Map touch inputs to the selected video output, so that the touch devices
-get rotated consistently with the video output. (Default: True)
-
-### Cursor Timeout
-
-Time in seconds for cursor to be hidden after last mouse movement or touch.
-Cursor will reappear when mouse moved or screen touched again. Set to `0`
-to *always* show cursor. Set to `-1` to *never* show cursor. (Default: 5
-seconds)
-
-### Keyboard Layout
-
-Set the keyboard layout and language. (Default: us)
-
-### Onscreen Keyboard
-
-Display an on-screen keyboard when keyboard input expected if set to
-`true`. (Default: True)
-
-To move, resize, or configure keyboard options, long press on the `...`
-within the `Return` key. You can also resize the keyboard by pressing and
-dragging along the keyboard edges.
-
-You can manually toggle keyboard visibility on/off by tapping extreme top
-right of screen or triple-clicing.
-
-See https://github.com/dr-ni/onboard for more details
-
-### Save Onscreen Config
-
-Save and restore changes to onscreen keyboard settings made during each
-session if set to `True`. Overwrites default settings. (Default: True)
-
-### Xorg.conf
-
-Append to or replace existing, default xorg.conf file.\
-Select 'Append' or 'Replace options.\
-To restore default, set to empty and select 'Append' option.
-
-### Audio Sink
-
-Set the audio output sink. (Default: Auto)\
-Options include: 'Auto', 'HDMI', 'USB', 'NONE', picking the first
-respective audio output, HDMI audio output, and USB/Aux audio output.
-
-### REST IP address
-
-IP address where the REST Server listens. (Default: 127.0.0.1) By default,
-for security it only accepts request from localhost -- meaning that REST
-commands must originate from the homeassistant localhost.
-
-If you want to accept requests from anywhere, then set to \`\`0.0.0.0\` BUT
-BE FOREWARNED that unless you set up and use a REST Bearker Token, this is
-a security vulnerability.
-
-### REST Port
-
-Port used for the REST API. Must be between 1024 and 49151. (Default: 8080)
-
-Note for security REST server only listens on localhost (127.0.0.1)
-
-### REST Bearer Token
-
-Optional authorization token for REST API. (Default: "") If set, then you
-must add line `-H "Authorization: Bearer <REST_BEARER_TOKEN>"` to REST API
-calls.
-
-### Gestures
-
-Editable list of JSON-like key-value pairs where the key represents a
-(valid) *gesture string* and the value is a structured set of one or more
-*action* commands. See section "GESTURE COMMANDS" below for more details,
-examples, and default gestures.
-
-### Command Whitelist Regex
-
-Regex (Python) of shell command that can be used in creating gesture action
-commands or when running the `run_command` and `run_commands` REST APIs.
-
-If left blank, then all commands are allowed except for those blacklisted
-as dangerous (otherwise, whitelist overrides internal blacklist).
-
-The pre-defined command blacklist includes commands like:
-
-```
-   python
-   ash, bash, sh, su
-   env, exec
-   kill, killall, pkill
-   cp, chmod, chown, dd, ln, mv, rm, tar
-   mount, umount
-   curl, nc, wget
-   find, xargs"
+# HAOS Kiosk Display - Chrome DRM
+
+Eksperymentalny fork [Welizard-bot/HAOS-kiosk](https://github.com/Welizard-bot/HAOS-kiosk), oparty na projekcie Jeffa Kosowsky'ego. Uruchamia Xorg, Openbox i **oficjalny Google Chrome Stable** na fizycznym HDMI komputera z Home Assistant OS. Home Assistant i Supervisor działają dalej w tle.
+
+Obsługiwana jest wyłącznie architektura **amd64/x86_64**. Docelowy sprzęt do testów to **Intel NUC6i3SYK, Core i3-6100U, Intel HD Graphics 520 (Skylake), 8 GB RAM**. Testy lokalne wykonano w Dockerze i wirtualnym X11; fizyczny NUC z HAOS, HDMI, i915 i serwisami VOD nie został jeszcze przetestowany.
+
+Debian/glibc i Google Chrome zwiększają szansę zgodności z DRM. Widevine pochodzi wyłącznie z instalacji i mechanizmów Chrome. Repozytorium nie zawiera Chrome, plików `.deb` ani binarnego CDM. Nie publikujemy obrazów kontenerów z Chrome; HAOS buduje obraz lokalnie i pobiera pakiet z podpisanego repozytorium APT Google. Obowiązują warunki korzystania z Google Chrome i usług VOD.
+
+## Instalacja w Home Assistant OS
+
+1. Zrób pełny backup w **Ustawienia → System → Kopie zapasowe** i pobierz go na inny komputer. Sprawdź, czy masz sposób przywrócenia HAOS przez sieć, jeżeli ekran przestanie działać.
+2. Zaktualizuj HAOS i Supervisor. Konfigurację sprawdzono ze stabilnym Supervisorem **2026.09.3**; fork używa aktualnego mapowania `app_config`.
+3. Podłącz telewizor do HDMI NUC-a, włącz TV i wybierz odpowiednie wejście **przed startem aplikacji**. Podłącz klawiaturę/mysz lub ekran dotykowy USB.
+4. Otwórz **Ustawienia → Apps → sklep → ⋮ → Repositories** (w starszym interfejsie: Dodatki → Sklep → Repozytoria).
+5. Wklej **https://github.com/HyziPyzi/HAOS-kiosk** i odśwież sklep.
+6. Wybierz **HAOS Kiosk Display - Chrome DRM**, wersja **2.0.0**, i zainstaluj. Pierwszy build pobiera pakiety i może potrwać kilka minut. Potrzebny jest dostęp do internetu i wolne miejsce na dysku.
+7. Zatrzymaj oryginalny kiosk przed uruchomieniem tego forka. Oba repo mogą być dodane do sklepu, ale dwa Xorg nie mogą jednocześnie sterować tym samym ekranem. Slug `haoskiosk_chrome` i prywatny katalog konfiguracji są oddzielne od oryginału.
+8. Zapisz konfigurację poniżej, uruchom aplikację i sprawdź zakładkę **Logi**. Po weryfikacji włącz automatyczny start.
+
+## Konfiguracja
+
+Zmień odpowiednie pola istniejącej konfiguracji; zachowaj pozostałe opcje z formularza:
+
+```yaml
+browser_engine: chrome
+ha_url: http://localhost:8123
+ha_dashboard: ""
+screen_timeout: 0
+output_number: 1
+audio_sink: auto
+keyboard_layout: pl
+browser_refresh: 600
+rest_ip: 127.0.0.1
+rest_port: 8080
+rest_bearer_token: ""
+command_whitelist: "^$"
+vnc_server: ""
+debug_mode: false
 ```
 
-Note that if you want to truly allow *all* commands, then use the wildcard
-`.*` but beware that it is DANGEROUS. If you want to disallow all commands
-set the regex to `^$`.
+`chromium` jest aliasem uruchamiającym Google Chrome. Luakit i Alpine Chromium nie są instalowane. Domyślnie Chrome otwiera dashboard HA. `ha_username` i `ha_password` są opcjonalne: możesz zalogować się ręcznie na ekranie. Jeśli chcesz automatyczne logowanie do HA, wpisz własne dane w konfiguracji aplikacji, najlepiej konto bez praw administratora. Automatyczne logowanie działa wyłącznie dla originu HA; nie wpisuje danych na stronach VOD. Nie umieszczaj haseł w URL.
 
-Note that regardless of setting only commands found in `/bin`, `/usr/bin`,
-and `/usr/local/bin` of the HAOSKiosk Add-on container are allowed.
+`output_number` wybiera N-te **podłączone** wyjście zgłoszone przez xrandr. Przy jednym TV użyj `1`. Przy dwóch ekranach sprawdź listę w logach i ewentualnie wybierz `2`. Pozostałe podłączone wyjścia są wyłączane. Wybrany output i pełny wynik xrandr są logowane.
 
-### VNC SERVER
+`screen_timeout: 0` wyłącza automatyczne wygaszanie. `browser_refresh` dotyczy tylko stron HA; Netflix, Max, Prime, Spotify i YouTube nie są cyklicznie przeładowywane przez watchdog. `0` całkowicie wyłącza okresowe przeładowanie.
 
-Launch VNC Server on port 5900 if password non-blank. If password set to
-'-', then don't require any password. This can be used to view or debug the
-kiosk remotely.
+## Trwały profil i backup
 
-To view launch a vnc server (e.g., RealVNC) and point it to port 5900 on
-your homeassistant instance (e.g., `homeassistant:5900`)
+Chrome zapisuje profil w **`/config/chromium-profile`** wewnątrz aplikacji. Nazwa została zachowana dla kompatybilności. Jest to własny katalog konfiguracji aplikacji (`/app_configs/<identyfikator_repo>_haoskiosk_chrome` na aktualnym HAOS), a nie katalog konfiguracji Core. Aktualizacje i restarty zachowują cookies, local storage, preferencje i komponenty przeglądarki. Nie nadpisujemy Preferences istniejącego profilu ani nie usuwamy Service Worker.
 
-*Use with caution* as it runs unencrypted and is accessible anywhere on
-your network.
+Przy zatrzymaniu aplikacja prosi Chrome przez lokalny CDP o normalne zamknięcie i zapis profilu. Twarde odcięcie zasilania nadal może utracić ostatnie zapisy. Backup aplikacji jest typu `cold`, aby zatrzymać przeglądarkę na czas kopii. Backup zawiera poufne dane profilu i ewentualne hasła z opcji: przechowuj go bezpiecznie. Odinstalowanie aplikacji z usunięciem danych usuwa profil.
 
-### Debug
+Profil oryginalnego dodatku nie jest automatycznie importowany. Do ewentualnej ręcznej migracji kopiuj cały profil przy **obu aplikacjach zatrzymanych**, po wykonaniu backupu. Chrome może zaktualizować format profilu; nie zakładaj, że cofnięcie do starego Chromium będzie bezpieczne.
 
-For debugging purposes, launches `Xorg` and `openbox` and then sleeps
-without launching `luakit`.\
-Manually, launch `luakit` (e.g.,
-`luakit -U localhost:8123/<your-dashboard>`) from Docker container.\
-E.g., `sudo docker exec -it addon_haoskiosk bash`
+## HDMI audio
 
-______________________________________________________________________
+Aplikacja korzysta z usługi audio Supervisora przez PulseAudio (`audio: true`), Debianowego `pactl` i `libasound2-plugins`. Nie uruchamia osobnego serwera PulseAudio.
 
-## REST APIs
+- `auto`: preferuje istniejący sink HDMI, potem domyślny sink HA, potem pierwszy dostępny.
+- `hdmi`: wybiera pierwszy dostępny sink zawierający `hdmi`.
+- `usb`: wybiera pierwszy sink USB.
+- `none`: tworzy/wybiera null sink, czyli wyciszony output.
 
-### launch_url {"url": "\<url>"}
+Jeśli HA nie udostępnia sinka HDMI, wybierz wyjście HDMI w ustawieniach audio aplikacji / urządzenia HAOS. Dostępne karty, profile i wyjścia można sprawdzić poleceniami HA CLI `ha audio info` oraz `pactl list short sinks` wewnątrz kontenera. Zmiany profilu karty konfiguruj w usłudze audio HAOS. Fork nie przełącza automatycznie profili innych aplikacji.
 
-Launch the specified 'url' in the kiosk display. Overwrites current active
-tab. If no url supplied, use HA_URL/HA_DASHBOARD as default url.
+Najpierw sprawdź zwykły film YouTube i głośność TV. W logach powinien pojawić się sink `...hdmi...` oznaczony `*`. Polecenia diagnostyczne w powłoce **kontenera kiosku**:
 
-Usage:
-
-```
-curl -X POST http://localhost:<REST_PORT>/launch_url
-curl -X POST http://localhost:<REST_PORT>/launch_url -H "Content-Type: application/json" -d '{"url": "<URL>"}'
+```sh
+pactl list short sinks
+pactl info
+pactl get-sink-mute @DEFAULT_SINK@
+pactl get-sink-volume @DEFAULT_SINK@
 ```
 
-### refresh_browser
+## Otwieranie stron i diagnostyka Chrome
 
-Refresh browser
+Istniejący endpoint **POST `/launch_url`** obsługuje dowolne prawidłowe URL HTTP/HTTPS, a także wybrane strony diagnostyczne Chrome. Żądanie bez `url` wraca do dashboardu HA. Przykład z powłoki hosta lub kontenera mającego dostęp do localhost HAOS:
 
-Usage:
-
-`curl -X POST http://localhost:<REST_PORT>/refresh_browser`
-
-### is_display_on
-
-Returns boolean depending on whether display is on or off.
-
-Usage:
-
-`curl -X GET http://localhost:8080/is_display_on`
-
-### display_on {"timeout": "\<timeout>"}
-
-Turn on display. If optional payload given, then set screen timeout to
-`<timeout>` which if 0 means *never* turn off screen and if positive
-integer then turn off screen after `<timeout>` seconds
-
-Usage:
-
-```
-curl -X POST http://localhost:<REST_PORT>/display_on
-curl -X POST http://localhost:8080/display_on -H "Content-Type: application/json" -d '{"timeout": <timeout>}'
+```sh
+curl -fsS -X POST http://127.0.0.1:8080/launch_url \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://www.netflix.com/"}'
 ```
 
-### display_off
+Analogicznie otworzysz `https://play.max.com/`, `https://www.primevideo.com/`, `https://open.spotify.com/` lub `https://www.youtube.com/`. Inne endpointy zachowane z upstream: `/refresh_browser`, `/display_on`, `/display_off`, `/is_display_on`, `/mute_audio`, `/unmute_audio`, `/toggle_audio`, `/screenshot`, `/enable_inputs`, `/disable_inputs`. Gesty korzystają z tego samego klienta sterowania Chrome.
 
-Turn off display
+Dla automatyzacji HA najwygodniej ustawić `rest_ip` na **adres LAN NUC-a** i własny mocny `rest_bearer_token`. Żądania HA Core pochodzą z osobnego kontenera; `127.0.0.1` Core nie musi wskazywać hosta HAOS. Nie używaj pustego tokenu przy wystawieniu API do LAN. Fork odmawia uruchomienia REST na nielokalnym adresie bez tokenu. Przykład do własnego `configuration.yaml` HA (zastąp adres):
 
-Usage:
-
-`curl -X POST http://localhost:<REST_PORT>/display_off`
-
-### xset
-
-Run `xset <args>` to get/set display information. In particular, use `-q`
-to get display information. Can only be run from localhost unless
-REST_BEARER_TOKEN set and used.
-
-Usage:
-
-`curl -X POST http://localhost:<REST_PORT>/xset -H "Content-Type: application/json" -d '{"args": "<arg-string>"}'`
-
-### run_command {"cmd": "\<command>"}
-
-Run `command` in the HAOSKiosk Docker container where `cmd_timeout` is an
-optional timeout in seconds.
-
-Commands are subject to blacklist/whitelist rules detailed above. Can only
-be run from localhost unless REST_BEARER_TOKEN set and used.
-
-Usage:
-
-`curl -X POST http://localhost:<REST_PORT>/run_command -H "Content-Type: application/json" -d '{"cmd": "<command>", "cmd_timeout": <seconds>}'`
-
-### run_commands {"cmds": ["\<command1>", "\<command2>",...], "cmd_timeout": \<seconds>}}
-
-Run multiple commands in the HAOSKiosk Docker container where `cmd_timeout`
-is an optional timeout in seconds.
-
-Commands are subject to blacklist/whitelist rules detailed above. Can only
-be run from localhost unless REST_BEARER_TOKEN set and used.
-
-Usage:
-
-`curl -X POST http://localhost:<REST_PORT>/run_commands -H "Content-Type: application/json" -d '{"cmds": ["<command1>", "<command2>",...], "cmd_timeout": <seconds>}'`
-
-**NOTE:** The API commands logs results to the HAOSkiosk log and return:
-
-```
-{
-  "success": bool,
-  "result": {
-    "success": bool,
-    "stdout": str,
-    "stderr": str,
-    "error": str (optional)
-  }
-}
-```
-
-Note that `run_commands` returns an array of `"results"` of form:
-`"results": [{"success": bool, "stdout": str, "stderr": str, "error": str (optional)},...]`
-
-You can format the stdout (and similarly stderr) by piping the output to:
-`jq -r .result.stdout`
-
-In the case of `run_commands`, pipe the output to:
-`jq -r '.results[]?.stdout'`
-
-### screenshot
-
-Take screen screenshot with optional filename, quality, and delay before
-screenshot. Quality only affects jpeg images
-
-Output format is jpeg unless optional filename ends in .bmp, .png, .pnm, or
-.tiff
-
-Screenshots are saved to `/media/screenshots`.
-
-Usage:
-
-```
-curl -X POST http://localhost:8080/screenshot
-curl -X POST http://localhost:8080/screenshot -H "Content-Type: application/json"
-     -d '{"filename": "<filename>", "quality": <1-100>, "delay: <seconds>}'
-```
-
-### current_processes
-
-Return number of currently running concurrent processes out of max allowed.
-
-Usage: `curl -X GET http://localhost:8080/current_processes`
-
-### disable_inputs
-
-Disable keyboard and pointer (e.g., mouse, touch) inputs. Can only be run
-from localhost unless REST_BEARER_TOKEN set and used.
-
-Usage:
-
-`curl -X POST http://localhost:<REST_PORT>/disable_inputs`
-
-### enable_inputs
-
-(Re)enable keyboard and pointer (e.g., mouse, touch) inputs. Can only be
-run from localhost unless REST_BEARER_TOKEN set and used.
-
-Usage:
-
-`curl -X POST http://localhost:<REST_PORT>/enable_inputs`
-
-### mute_audio
-
-Mute audio output for default audio sink. Returns final mute state.
-
-Usage:
-
-`curl -X POST http://localhost:<REST_PORT>/mute_audio`
-
-### unmute_audio {"volume": "\<volume>"}
-
-Unmute audio output for default audio sink. Optionally, set volume (integer
-between 0 and 150). Returns final volume and mute state
-
-Usage:
-
-```
-curl -X POST http://localhost:<REST_PORT>/unmute_audio
-curl -X POST http://localhost:8080/unmute_audio -H "Content-Type: application/json" -d '{"volume": <volume>}'
-```
-
-### toggle_audio
-
-Toggle mute for default audio sink. Returns final mute state.
-
-Usage:
-
-`curl -X POST http://localhost:<REST_PORT>/toggle_audio`
-
-#### HA REST Command Syntax
-
-You can also configure all the above REST commands in your
-`configuration.yaml` as follows (assuming REST_PORT=8080)
-
-```
+```yaml
 rest_command:
-  haoskiosk_launch_url:
-    url: "http://localhost:8080/launch_url"
+  kiosk_netflix:
+    url: "http://192.168.1.50:8080/launch_url"
     method: POST
-    content_type: "application/json"
-    payload: '{"url": "{{ url }}"}'
-
-  haoskiosk_refresh_browser:
-    url: "http://localhost:8080/refresh_browser"
-    method: POST
-    content_type: "application/json"
-    payload: "{}"
-
-  haoskiosk_is_display_on:
-    url: "http://localhost:8080/is_display_on"
-    method: GET
-    content_type: "application/json"
-
-  haoskiosk_display_on:
-    url: "http://localhost:8080/display_on"
-    method: POST
-    content_type: "application/json"
-    payload: >-
-      {{
-        {
-          'timeout': timeout | int if timeout is defined and timeout is number and timeout >= 0 else none
-        }
-        | to_json
-      }}
-
-  haoskiosk_display_off:
-    url: "http://localhost:8080/display_off"
-    method: POST
-    content_type: "application/json"
-    payload: "{}"
-
-  haoskiosk_xset:
-    url: "http://localhost:8080/xset"
-    method: POST
-    content_type: "application/json"
-    payload: '{"args": "{{ args }}"}'
-
-  haoskiosk_run_command:
-    url: "http://localhost:8080/run_command"
-    method: POST
-    content_type: "application/json"
-    payload: >-
-      {{
-        {
-          'cmd': cmd,
-          'cmd_timeout': cmd_timeout | int if cmd_timeout is defined and cmd_timeout is number  and cmd_timeout > 0 else none
-        }
-        | to_json
-      }}
-
-
-  haoskiosk_run_commands:
-    url: "http://localhost:8080/run_commands"
-    method: POST
-    content_type: "application/json"
-    payload: >-
-      {{
-        {
-          'cmds': cmds,
-          'cmd_timeout': cmd_timeout | int if cmd_timeout is defined and cmd_timeout is number and cmd_timeout > 0 else none
-        }
-        | to_json
-      }}
-
-  haoskiosk_screenshot:
-    url: "http://localhost:8080/screenshot"
-    method: POST
-    content_type: "application/json"
-    payload: >-
-      {{
-        {
-          'delay': delay | int if delay is defined and delay | int(0) >= 0 else none,
-          'filename': filename if filename is defined and filename != "" and "/" not in filename and "\0" not in filename else none,
-          'quality': quality | int if quality is defined and 1 <= quality | int <= 100 else none
-        }
-        | to_json
-      }}
-
-  haoskiosk_current_processes:
-    url: "http://localhost:8080/current_processes"
-    method: GET
-    content_type: "application/json"
-
-  haoskiosk_disable_inputs:
-    url: "http://localhost:8080/disable_inputs"
-    method: POST
-    content_type: "application/json"
-    payload: "{}"
-
-  haoskiosk_enable_inputs:
-    url: "http://localhost:8080/enable_inputs"
-    method: POST
-    content_type: "application/json"
-    payload: "{}"
-
-  haoskiosk_mute_audio:
-    url: "http://localhost:8080/mute_audio"
-    method: POST
-    content_type: "application/json"
-
-  haoskiosk_unmute_audio:
-    url: "http://localhost:8080/unmute_audio"
-    method: POST
-    content_type: "application/json"
-    payload: >-
-      {{
-        {
-          'volume': volume | int if volume is defined and volume is number and 0 <= volume | int <= 150 else none
-        }
-        | to_json
-      }}
-
-  haoskiosk_toggle_audio:
-    url: "http://localhost:8080/toggle_audio"
-    method: POST
-    content_type: "application/json"
-```
-
-Note if optional \`REST_BEARER_TOKEN~ is set, then add the following two
-authentication lines to each of the above stanzas:
-
-```
     headers:
-      Authorization: Bearer <REST_BEARER_TOKEN>
+      authorization: !secret kiosk_rest_authorization
+    content_type: "application/json"
+    payload: '{"url":"https://www.netflix.com/"}'
 ```
 
-The rest commands can then be referenced from automation actions as:
-`rest_command.haoskiosk_<command-name>`
+W swoim `secrets.yaml` dodaj `kiosk_rest_authorization` z wartością `Bearer ` i ustawionym przez siebie tokenem. API działa przez HTTP: używaj wyłącznie zaufanej sieci LAN/VPN, nie przekierowuj go do internetu. Nie wklejaj prawdziwego tokenu w publiczne logi ani repo. Interfejs edytora jest dostępny pod `/` na porcie REST; zapis wymaga tokenu, jeśli został ustawiony. Ingress nie jest używany. Żądania z nagłówkiem Origin są blokowane, więc sterowanie powinno odbywać się przez `rest_command` HA lub curl, a nie fetch z obcej strony internetowej.
 
-#### Examples
+W trybie kiosk najłatwiej otworzyć strony wewnętrzne przez API:
 
-```
-actions:
-  - action: rest_command.haoskiosk_launch_url
-  - action: rest_command.haoskiosk_launch_url
-    data:
-      url: "https://homeassistant.local/my_dashboard"
-
-  - action: rest_command.haoskiosk_refresh_browser
-
-  - action: rest_command.haoskiosk_is_display_on
-
-  - action: rest_command.haoskiosk_display_on
-  - action: rest_command.haoskiosk_display_on
-    data:
-      timeout: 300
-
-  - action: rest_command.haoskiosk_display_off
-
-  - action: rest_command.haoskiosk_xset
-    data:
-      args: "<arg-string>"
-
-  - action: rest_command.haoskiosk_run_command
-    data:
-      cmd: "command"
-      cmd_timeout: <seconds>
-
-  - action: rest_command.haoskiosk_run_commands
-    data:
-      cmds:
-        - "<command1>"
-        - "<command2>"
-        ...
-      cmd_timeout: <seconds>
-
-  - action: rest_command.haoskiosk_current_processes
-
-  - action: rest_command.haoskiosk_disable_inputs
-
-  - action: rest_command.haoskiosk_enable_inputs
-
-  - action: rest_command.haoskiosk_mute_audio
-
-  - action: rest_command.haoskiosk_unmute_audio
-  - action: rest_command.haoskiosk_unmute_audio
-    data:
-      volume: 100
-
-  - action: rest_command.haoskiosk_toggle_audio
+```sh
+curl -fsS -X POST http://127.0.0.1:8080/launch_url \
+  -H 'Content-Type: application/json' -d '{"url":"chrome://components"}'
 ```
 
-### REST API Use Cases
+Jeśli włączyłeś token, dodaj nagłówek Authorization z własną wartością. Zmieniaj `url` na:
 
-1. Create automations and services to:
+- **`chrome://version`**: wersja, binarka i lokalna ścieżka profilu. Wersja jest również w logach startowych (`google-chrome-stable --version`).
+- **`chrome://gpu`**: Graphics Feature Status, GL renderer, Problems Detected. Szukaj Intel/Mesa i przyspieszanych funkcji; `llvmpipe` oznacza rendering programowy. Przyspieszenie renderowania i dekodowania wideo to oddzielne funkcje.
+- **`chrome://components`**: Widevine Content Decryption Module i jego wersja, jeśli komponent jest widoczny w tej wersji Chrome. Jeśli jest przycisk aktualizacji, użyj go przy dostępie do internetu. Nie każda wersja Chrome pokazuje komponent dostarczony w pakiecie w identyczny sposób.
+- **`chrome://settings/content/protectedContent`**: zezwolenie na odtwarzanie treści chronionych.
+- **`chrome://media-internals`**: diagnoza odtwarzania, dekodera i błędów CDM. Te ekrany mogą zawierać szczegóły oglądanej sesji; nie publikuj ich bez sprawdzenia.
 
-   - Turn on/off display based on time-of-day, proximity, event triggers,
-     voice commands, etc.
+## Test Netflix / Max / Prime / Spotify
 
-     See 'examples' folder for trigger based on ultrasonic distance and HA
-     boolean sensor.
+1. Sprawdź wersję Chrome, `chrome://gpu`, Widevine i YouTube z dźwiękiem.
+2. Otwórz Netflix przez `/launch_url`, zaloguj się bezpośrednio na ekranie, uruchom rzeczywisty chroniony film i sprawdź obraz oraz dźwięk. Samo wyświetlenie strony nie testuje DRM.
+3. Odtwarzaj przez kilkanaście minut i sprawdź przewijanie / fullscreen. Następnie zatrzymaj aplikację normalnie, uruchom ponownie, wróć do Netflix i sprawdź zachowane logowanie.
+4. Powtórz z Max, Prime Video i Spotify Web. Zapisz komunikat/kod błędu serwisu, wersję Chrome i stan GPU, jeśli odtwarzanie się nie uda.
 
-   - Send dashboard or other url to HAOSKiosk display based on event
-     triggers or pre-programmed rotation (e.g., to sequentially view
-     different cameras).
+Obecność `libwidevinecdm.so` i pozytywne EME `com.widevine.alpha` potwierdzają wykrycie mechanizmu DRM; **nie potwierdzają otrzymania licencji ani zgodności konkretnego serwisu**. W testach lokalnych negocjacja EME z oficjalnym Chrome przeszła.
 
-   - Create simple screensavers using a loop to iterate through an image
-     folder and call `launch_url`
+## Logi i problemy
 
-     See 'examples' folder for simple Bash script example screensaver.
+Logi: **Apps → HAOS Kiosk Display - Chrome DRM → Logi**. Start raportuje wersję/ścieżkę Chrome, architekturę, widoczne `card*`/`renderD*`, sterownik GPU ze sysfs, podłączone złącza, wybrany output, wynik xrandr, audio sinks i ścieżkę biblioteki Widevine, jeśli ją znajdzie. Nie odczytuje cookies, tokenów ani plików sesji. Nie włączaj `set -x` przy diagnozie z prawdziwymi danymi logowania.
 
-2. Use custom command(s) to change internal parameters of HAOSKiosk and the
-   luakit browser configuration.
+### Czarny ekran
 
-______________________________________________________________________
+- Włącz TV i wybierz HDMI przed startem. Sprawdź kabel, inne wejście TV i ewentualnie inny ekran.
+- Zatrzymaj oryginalny kiosk lub inne Xorg. Sprawdź w logach `connected`, `Selected physical output` oraz powodzenie startu X.
+- Przy dwóch podłączonych ekranach zmień `output_number`. Przy problemach z EDID spróbuj 1920×1080/60 Hz zamiast 4K.
+- Użyj `debug_mode: true`, żeby uruchomić X/Openbox bez Chrome i rozdzielić problem Xorg od przeglądarki. Sprawdź `/var/log/Xorg.0.log` wewnątrz kontenera; nie usuwaj profilu Chrome.
+- Dla GPU sprawdź `chrome://gpu`; fork nie wymusza software renderingu ani ignorowania blokady sterowników Chrome. Rendering programowy w wirtualnym Dockerze na PC nie dowodzi awarii i915 na NUC-u.
 
-## Gesture Commands
+### Brak dźwięku
 
-Each Gesture Command is a JSON-like key-value pair where the key is a valid
-*Gesture String* corresponding to a specific sequence of button clicks or
-finger taps and the value is an *Action Command* containing a structured
-set of one or more commands to execute when the gesture is recognized.
+- Sprawdź głośność/mute w TV, odtwarzaczu i PulseAudio. Włącz TV przed startem i ustaw `audio_sink: hdmi`.
+- Sprawdź `ha audio info`, listę sinków i profil HDMI w ustawieniach audio HAOS. Brak sinka HDMI nie jest naprawiany instalowaniem drugiego PulseAudio w aplikacji.
+- Jeśli nie ma żadnych sinków, sprawdź usługę audio Supervisora i ustawienia wyjścia aplikacji. Jeśli zwykły YouTube ma dźwięk, a VOD nie, diagnozuj również odtwarzacz/DRM serwisu.
 
-The formats of the Gesture Strings and Action Commands are precisely
-defined, so if they fail to load check your log for error messages.
+### Brak `/dev/dri` lub input
 
-### Gesture String Keys
+- `video: true` daje dostęp do istniejących urządzeń wideo przez Supervisor; fork nie wymaga istnienia `card1`. Typowy Intel to `card0` i `renderD128`, lecz wybór karty opiera się na podłączonym złączu, nie na sztywnej numeracji.
+- W powłoce kontenera sprawdź `ls -l /dev/dri`, a na hoście `ls -l /sys/class/drm` i czy kernel HAOS załadował i915. Sterownik jądra pochodzi z HAOS; nie instalujemy go w kontenerze.
+- Jeśli urządzenia nie istnieją na hoście, sprawdź BIOS / aktywną grafikę zintegrowaną, aktualizacje HAOS i restart z podłączonym TV.
+- Zachowano listę `/dev/input/event0`–`event25` upstream. Supervisor ignoruje nieistniejące urządzenia; przy nietypowej numeracji ponad 25 potrzebna jest zmiana listy w forku. Udev w kontenerze i libinput obsługują myszy, klawiatury i touch. Aktualny HAOS mapuje `/dev`; dostęp regulują reguły urządzeń.
 
-Each Gesture String key is of form:
+### Widevine / VOD
 
-**`<CONTACTS>_<DEVICE>_<CLICKS>_<GESTURE>`**
+- Sprawdź `chrome://version`, komponenty, uprawnienia protected content, czas systemu, internet, DNS i dostęp do serwerów usług/Google. Daj Chrome czas na aktualizację komponentu i uruchom ponownie.
+- Sprawdź bibliotekę w logach i rzeczywisty chroniony film. Jeśli serwis zgłasza nieobsługiwaną przeglądarkę, zanotuj wersję Chrome i kod błędu.
+- Odbuduj/zaktualizuj aplikację, aby zainstalować nowszy Chrome. Nie pobieraj CDM z przypadkowych stron i nie kopiuj binariów Widevine do repo.
+- Nie resetuj całego profilu jako pierwszego kroku; stracisz logowania. Przed resetem wykonaj backup przy zatrzymanej aplikacji.
 
-where:
+## Uprawnienia i ograniczenia
 
-**`<CONTACTS>`** field captures he maximal contact set during the gesture.
-Either:
+Chrome działa jako root w kontenerze z **`--no-sandbox`**, ponieważ jego standardowy sandbox odmawia startu jako root. Zachowano model upstream dla dostępu Xorg/GPU/input. Fork potrzebuje `SYS_ADMIN` do mechanizmu tty/remount Xorg i `MKNOD` do przywracania tty; AppArmor jest wyłączony, ponieważ standardowy profil blokuje mount. Nie jest to izolacja odpowiednia dla nieufnych stron. Uprawnienia służą fizycznemu ekranowi; Home Assistant nie jest uruchamiany w kontenerze Chrome.
 
-- A number (`N`, `N+`, `N-`) representing the (maximum) number of contacts
-  (buttons or fingers), where `N+` and `N-` respectively indicate greater
-  than and less than or equal to `N`
-  - List of button numbers and/or corresponding button names (for
-    mouse-type devices only) e.g., `[Left, Right]`, `[1, 3]`, `[Left, 3]`
+DevTools słucha **wyłącznie `127.0.0.1:9222`** i nie jest publikowany w LAN. Xorg ma `-nolisten tcp`. REST domyślnie słucha localhost:8080; inne bindy wymagają tokenu dla wszystkich poleceń. Dowolne komendy użytkownika są domyślnie wyłączone (`command_whitelist: "^$"`); wbudowane działania kiosku działają dalej. Opcjonalny VNC jest wyłączony; po ustawieniu hasła słucha wyłącznie localhost:5900 i wymaga tunelu SSH. `vnc_server: "-"` jest odrzucane. Nie uruchamiaj drugiego forka z tymi samymi portami.
 
-**`<DEVICE>`** field identifies the type of input contact either by:
+`--password-store=basic` pozwala na trwały profil bez osobnego systemowego keyringu; zabezpiecz dostęp do danych aplikacji i backupów. Nie udostępniaj profilu przez serwer WWW.
 
-- Device Type (e.g., `MOUSE`, `TOUCH`) or the wildcard `ANY`
-- Mechanism (e.g., `Button`, `Finger`)
+Netflix, Max i Prime mogą ograniczać jakość według OS, przeglądarki, poziomu DRM, HDCP, planu, regionu i własnych polityk. **Nie gwarantujemy odtwarzania w każdej usłudze ani 4K/HDR.** Intel HD 520 ma ograniczenia dekodowania nowszych kodeków; działający GPU nie oznacza sprzętowego dekodowania każdego filmu. Obciążenie Chrome konkuruje z HA o CPU/RAM. Możliwe są zerwania odtwarzania po zmianach usług, Chrome, HAOS lub komponentów DRM.
 
-**`<CLICKS>`** field captures the number (`M`, `M+`, `M-`) of clicks/taps
-in the gesture where `M+` and `M-` are respectively greater than or less
-than or equal to `M` (e.g., `1` for single-click, `2` for double-click,
-`2+` for 2 or more clicks)
+## Build i weryfikacja dla autorów
 
-**`<GESTURE>`** field specifies the general class or device-specific name
-of the gesture
+Baza: oficjalny HA `base-debian:trixie`, przypięty digest manifestu w Dockerfile. amd64 jest sprawdzane również przez `dpkg --print-architecture`. `BUILD_FROM` ma jawny domyślny obraz; można go nadpisać świadomie. `build.yaml` nie jest wymagany ani używany przez obecny Supervisor. S6, bashio i TempIO pochodzą z bazy HA.
 
-- Class (e.g., `CLICKTAP`, `DRAG`, `SWIPE`, `LONG`, `CORNER_<name>`) or the
-  wildcard `ANY`
-- Friendly Name (e.g., `Click`, `Tap`, `Drag`, `Swipe`, `Long Click`,
-  `Long Tap`). Note the names may be device-specific (e.g., Click for
-  Mouse, Tap for Touch)
-
-#### Additional notes regarding gesture naming:
-
-- `ANY` is a wildcard matching any gesture
-- Corners are named: CORNER_TOPLEFT, CORNER_TOPRIGHT, CORNER_BOTLEFT,
-  CORNER_BOTRIGHT
-- `DRAG` and `SWIPE` differ primarily in velocity (`SWIPE` is faster)
-- Both `DRAG` and `SWIPE` may include suffixes `_LEFT`, `_RIGHT`, `_UP`, or
-  `_DOWN`
-- Undirected `DRAG`/`SWIPE` act as wildcards for their directional variants
-- `LONG` can take the optional device-specific suffixes `_CLICK` or `TAP`
-- CORNER\_<name> triggers when click or tap is in within "click_dim" of the
-  named corner (default 5 pixels)
-- `DRAG`, `SWIPE`, and `LONG` (and their variants) are always single-click
-  gestures
-- Matching is case-insensitive
-
-Note that Gesture String Keys are matched in order, so that you should
-always enter keys from particular to more general when using wildcards
-
-#### Validity Checks
-
-- Single-click gestures cannot be used if more than 1 Click/Tap
-- `Click` applies only to mouse devices; `Tap` applies only to touch
-  devices
-
-#### Valid Examples
-
-```
-[Left, Right]_MOUSE_3_CLICKTAP
-[1,2,3]_MOUSE_1+_CORNER_TOPRIGHT
-2_TOUCH_1_DRAG_LEFT
-2_Button_1_Long Click
-3_Finger_2_Tap
-2+_Finger_1_Swipe_down
-1_ANY_2-_CLICKTAP
-1+_ANY_1+_ANY
+```sh
+docker build --platform linux/amd64 --build-arg BUILD_VERSION=2.0.0 --build-arg BUILD_ARCH=amd64 -t haoskiosk-chrome:test haoskiosk
+docker build -f tests/Dockerfile -t haoskiosk-chrome:checks .
+docker run --rm -v "$PWD:/src:ro" haoskiosk-chrome:checks
+docker run --rm --entrypoint hadolint -v "$PWD:/src:ro" hadolint/hadolint:latest-alpine --ignore DL3008 /src/haoskiosk/Dockerfile
 ```
 
-#### Invalid Examples
+Testy obejmują YAML/JSON, składnię wszystkich plików Python, shellcheck, dostępność programów, rzeczywisty Chrome w Xvfb z flagami produkcyjnymi, CDP, zachowanie cookies/local storage po normalnym restarcie, negocjację EME Widevine, nasłuch DevTools tylko loopback, autoryzację REST i ograniczenie URL/originu. Nie zastępują testów HDMI, i915, audio HAOS, instalacji na NUC-u ani licencji serwisów. Nie publikuj wynikowego obrazu zawierającego Chrome.
 
-```
-1_Mouse_3-Tap     (Tap is for Touch)
-1-Touch_2-Long    (Long gestures must be single contact)
-```
+Aktualne źródła sprawdzone 2026-09-30: [HA Apps configuration](https://developers.home-assistant.io/docs/apps/configuration/), [migracja buildera do BuildKit](https://developers.home-assistant.io/blog/2026/04/02/builder-migration/), [oficjalne obrazy HA Debian](https://github.com/home-assistant/docker-base), [konfiguracja urządzeń Supervisora](https://github.com/home-assistant/supervisor/blob/main/supervisor/docker/app.py), [klucze podpisujące Google](https://www.google.com/linuxrepositories/).
 
-### Action Commands
-
-Action commands may be expressed in one of three forms:
-
-1. **Single command string** e.g., `"ls -a -l"` Note that an empty string
-   acts as a No-Op -- i.e., it will be ignored and can be used with
-   wildcard gestures to block actions of lower priority.
-
-2. **List of commands** - Each command may be either:
-
-   - A string: `"echo hello"`
-   - An argv-style list: `["ls", "-a", "-l"]`
-
-Example `["echo hello", ["ls", "-a", "-l"]]`
-
-Note that the commands themselves can either be shell commands or
-kiosk-specific internal commands (see below) that begin with the prefix
-'kiosk.'
-
-3. **Command dictionary** with required key `"cmds":` and optional keys:
-   `"msg":` and `"timeout"`
-
-Examples:
-
-```
-{"cmds": "ls -al", "msg": "list all files", "timeout": 1}
-{"cmds": ["echo hello", ["ls", "-al"]], "msg": "echo hello and list all files", "timeout": 5}
-```
-
-#### Kiosk-specific internal commands
-
-- **kiosk.back**: Go back in browser history
-- **kiosk.forward**: Go forward in browser history
-- **kiosk.refresh_browser**: Reload current page
-- **kiosk.launch_url <url>**: Launch <url> in existing tab/window.\
-  If no <url> given, use HA_URL/HA_DASHBOARD as default
-- **kiosk.display_on <timeout>**: Turn on display with optional timeout
-- **kiosk.display_off**: Turn off display immediately
-- **kiosk.toggle_keyboard**: Toggle onscreen keyboard
-- **kiosk.toggle_audio**: Toggle mute state of default audio sink
-
-### Defaults Gesture Command Bindings
-
-The following gestures are included by default (but can be removed by
-clicking on the `X` next to them):
-
-- **Single Tap or Click in Top Right Corner**: *Toggle on-screen keyboard*
-
-```
-"1_ANY_1_CORNER_TOPRIGHT": {"cmds": "kiosk.toggle_keyboard", "msg": "Toggling Onboard keyboard..."}
-```
-
-- **Left Triple Mouse Click**: *Toggle on-screen keyboard*
-
-```
-"[Left]_MOUSE_3_CLICK": {"cmds": "kiosk.toggle_keyboard", "msg": "Toggling Onboard keyboard..."}
-```
-
-- **3-Finger Single Tap**: *Toggle on-screen keyboard*
-
-```
-"3_TOUCH_1_TAP": {"cmds": "kiosk.toggle_keyboard", "msg": "Toggling Onboard keyboard..."}
-```
-
-- **3-Finger Double Tap**: *Refresh Browser*
-
-```
-"3_TOUCH_2_TAP": {"cmds": "kiosk.refresh_browser", "msg": "Refresh Browser"}
-```
-
-- **3-Finger Triple Tap**: *Toggle audio mute*
-
-```
-"3_TOUCH_3_TAP": {"cmds": "kiosk.toggle_audio", "msg": "Toggle audio mute"}'
-```
-
-- **3-Finger Quadruple Tap**: *Save screenshot*
-
-```
-"3_TOUCH_4_TAP": {"cmds": "kiosk.screenshot", "msg": "Save screenshot"}'
-```
-
-- **3-Finger Left Swipe**: *Go forward one element in browser history*
-
-```
-"3_TOUCH_1_SWIPE_LEFT": {"cmds": "kiosk.forward", "msg": "Go forward in the history browser"}
-```
-
-- **3-Finger Right Swipe**: *Go back one element in browser history*
-
-```
-"3_TOUCH_1_SWIPE_RIGHT": {"cmds": "kiosk.back", "msg": "Go back in the history browser"}
-```
-
-- **2-Finger Triple Tap**: *Restore Default HA dashboard
-  (HA_URL/HA_Dashboard)*
-
-```
-"2_TOUCH_3_TAP": {"cmds": "kiosk.launch_url", "msg": "Restore default dashboard: HA_URL/HA_DASHBOARD"}
-```
-
-- **2-Finger Quadruple Tap**: *Open Google search*
-
-```
-"2_TOUCH_4_TAP": {"cmds": [["kiosk.lauch_url", "www.google.com"]], "msg": "Open Google search"}'
-```
-
-Note if you didn't have the built-in functions, you could have manually
-implemented the above as:
-
-```
-"1_ANY_1_CORNER_TOPRIGHT": {"cmds": [["dbus-send", "--type=method_call", "--dest=org.onboard.Onboard", "/org/onboard/Onboard/Keyboard", "org.onboard.Onboard.Keyboard.ToggleVisible"]], "msg": "Toggling Onboard keyboard..."}
-
-"[Left]_MOUSE_3_CLICK": {"cmds": [["dbus-send", "--type=method_call", "--dest=org.onboard.Onboard", "/org/onboard/Onboard/Keyboard", "org.onboard.Onboard.Keyboard.ToggleVisible"]], "msg": "Toggling Onboard keyboard..."}
-
-"3_TOUCH_1_TAP": {"cmds": [["dbus-send", "--type=method_call", "--dest=org.onboard.Onboard", "/org/onboard/Onboard/Keyboard", "org.onboard.Onboard.Keyboard.ToggleVisible"]], "msg": "Toggling Onboard keyboard..."}
-
-"3_TOUCH_2_TAP": {"cmds": [["xdotool", "key", "--clearmodifiers ctrl+r"]], "msg": "Refresh Browser"}
-
-"3_TOUCH_3_TAP": {"cmds": [["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"]], "msg": "Toggle audio mute"}'
-
-"3_TOUCH_1_SWIPE_LEFT": {"cmds": [["xdotool", "key", "--clearmodifiers", "ctrl+Right"]], "msg": "Go forward in the history browser"}
-
-"3_TOUCH_1_SWIPE_RIGHT": {"cmds": [["xdotool", "key", "--clearmodifiers", "ctrl+Left"]], "msg": "Go back in the history browser"}
-
-"2_TOUCH_3_TAP": {"cmds": "luakit \"$HA_URL/$HA_DASHBOARD\"", "msg": "Restore default dashboard"}
-
-"2_TOUCH_4_TAP": {"cmds": "luakit \"www.google.com\"", "msg": "Open Google search"}'
-```
-
-______________________________________________________________________
-
-## KEYBOARD SHORTCUTS
-
-The following new fixed keyboard shortcuts are defined (but subject to
-change).
-
-- **Ctrl+o:** *Toggle Onboard onscreen keyboard*
-
-- **Ctrl+r:** *Reload page*
-
-- **Ctrl+Left:** *Go back in the browser tab history*
-
-- **Ctrl+Right:** *Go forward in the browser tab history*
-
-- **Ctrl+Alt+t:** *Open new tab*
-
-- **Ctrl+Alt+Shift+t:** *Close current tab*
-
-- **Ctrl+Alt+w:** *Open new window*
-
-- **Ctrl+Alt+Shift+w:** *Close current window* (except for last window)
-
-- **Ctl+Alt+Left:** *Previous tab*
-
-- **Ctl+Alt+Right:** *Next tab*
-
-- **Ctl+Alt+Shift+Left:** *Previous window* (Also: **Alt+Shift+Tab**)
-
-- **Ctl+Alt+Shift+Right:** *Next window* (Also: **Alt+Tab**)
-
-- **Ctrl+Alt+k:** *Take screenshot and save to /media/screenshots*
-
-Note that the Onbox Window manager defines many other default bindings.
-
-______________________________________________________________________
-
-## MISCELLANEOUS NOTES
-
-#### Luakit browser
-
-The Luakit browser is launched in kiosk-like (*passthrough*) mode. In
-general, you want to stay in `passthrough` mode to preserve the kiosk-like
-experience and pass all keystrokes to the browser page (except for explicit
-bindings as defined above)
-
-Luakit modes and commands are similar to vi
-
-- To enter *normal* mode (similar to command mode in `vi`), press
-  `ctl-alt-esc`.
-
-- To return to *passthrough* mode, press `ctl-Z` or alternatively, press
-  `i` to enter *insert*
-
-See [luakit documentation](https://wiki.archlinux.org/title/Luakit) for
-further usage information and available commands.
+Podziękowania: Jeff Kosowsky oraz autorzy Welizard-bot/HAOS-kiosk. Kod forka zachowuje licencję upstream; licencja projektu nie obejmuje własnościowych binariów Chrome/Widevine.

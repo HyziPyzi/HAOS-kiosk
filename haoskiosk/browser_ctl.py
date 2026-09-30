@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """Browser control helpers for HAOS Kiosk.
 
-Provides a single control surface for both Luakit and Chromium. Luakit keeps the
-legacy xdotool/`luakit -n` behaviour. Chromium uses the local DevTools protocol
-so navigation and reload actions work on the active page target without UI
-keystroke emulation.
+Controls official Google Chrome through the local DevTools protocol.
+Navigation and reload actions operate on the existing page and persistent profile.
 """
 
 from __future__ import annotations
@@ -13,7 +11,6 @@ import asyncio
 import json
 import os
 import re
-import subprocess
 import sys
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -21,9 +18,9 @@ from typing import Any
 from aiohttp import ClientSession, ClientTimeout, WSMsgType  # type: ignore[import-not-found]
 
 
-BROWSER_ENGINE = (os.getenv("BROWSER_ENGINE") or "chromium").strip().lower()
+BROWSER_ENGINE = (os.getenv("BROWSER_ENGINE") or "chrome").strip().lower()
 CHROMIUM_DEVTOOLS_PORT = int(os.getenv("CHROMIUM_DEVTOOLS_PORT", "9222"))
-CHROMIUM_DEVTOOLS_HOST = os.getenv("CHROMIUM_DEVTOOLS_HOST", "127.0.0.1")
+CHROMIUM_DEVTOOLS_HOST = "127.0.0.1"
 DEFAULT_LAUNCH_URL = (
     f"{(os.getenv('HA_URL') or 'about:blank').rstrip('/')}/{os.getenv('HA_DASHBOARD') or ''}"
 ).strip("/") or "about:blank"
@@ -40,9 +37,18 @@ VALID_URL_REGEX = re.compile(
 )
 
 
+CHROME_DIAGNOSTIC_URLS = {
+    "chrome://version", "chrome://components", "chrome://gpu",
+    "chrome://media-internals", "chrome://settings/content/protectedContent",
+}
+
+
 def is_valid_url(url: str) -> bool:
     """Validate URL format (allows http://, https://, bare domain/IP, path, query, fragment)."""
-    return bool(url == "about:blank" or VALID_URL_REGEX.fullmatch(url.strip()))
+    return isinstance(url, str) and bool(
+        url == "about:blank" or url.rstrip("/") in CHROME_DIAGNOSTIC_URLS
+        or VALID_URL_REGEX.fullmatch(url.strip())
+    )
 
 
 def normalize_url(url: str | None) -> str:
@@ -50,18 +56,11 @@ def normalize_url(url: str | None) -> str:
     candidate = (url or DEFAULT_LAUNCH_URL or "about:blank").strip()
     if not candidate:
         candidate = DEFAULT_LAUNCH_URL or "about:blank"
-    if candidate != "about:blank" and not candidate.startswith(("http://", "https://")):
+    if candidate != "about:blank" and not candidate.startswith(("http://", "https://", "chrome://")):
         candidate = "http://" + candidate
     if not is_valid_url(candidate):
-        raise ValueError(f"Invalid URL format: {candidate}")
+        raise ValueError("Invalid or unsupported URL")
     return candidate
-
-
-def _run_luakit_command(args: list[str]) -> None:
-    result = subprocess.run(args, text=True, capture_output=True, check=False)
-    if result.returncode != 0:
-        stderr = (result.stderr or "").strip()
-        raise RuntimeError(stderr or f"Command failed with exit={result.returncode}: {args}")
 
 
 class ChromiumPageSession:
@@ -178,6 +177,17 @@ class ChromiumController:
 
         return await self._with_page(worker)
 
+    async def close(self) -> dict[str, Any]:
+        """Ask Chrome to flush its persistent profile and shut down normally."""
+        async with ClientSession(timeout=self._timeout) as session:
+            async with session.get(self._json_list_url.replace('/json/list', '/json/version')) as response:
+                response.raise_for_status()
+                version = await response.json()
+            async with session.ws_connect(version['webSocketDebuggerUrl']) as websocket:
+                await websocket.send_json({'id': 1, 'method': 'Browser.close'})
+                await websocket.receive()
+        return {"success": True}
+
     async def reload(self, *, ignore_cache: bool = False) -> dict[str, Any]:
         """Reload the active page."""
 
@@ -238,21 +248,12 @@ class ChromiumController:
 
 async def run_browser_action(action: str, url: str | None = None) -> dict[str, Any]:
     """Dispatch browser control action based on configured engine."""
-    if BROWSER_ENGINE == "luakit":
-        normalized = normalize_url(url) if action == "launch_url" else None
-        if action == "launch_url":
-            _run_luakit_command(["luakit", "-n", normalized or DEFAULT_LAUNCH_URL])
-        elif action == "refresh_browser":
-            _run_luakit_command(["xdotool", "key", "--clearmodifiers", "ctrl+r"])
-        elif action == "back":
-            _run_luakit_command(["xdotool", "key", "--clearmodifiers", "ctrl+Left"])
-        elif action == "forward":
-            _run_luakit_command(["xdotool", "key", "--clearmodifiers", "ctrl+Right"])
-        else:
-            raise RuntimeError(f"Unsupported luakit action: {action}")
-        return {"success": True, "engine": "luakit", "action": action}
+    if BROWSER_ENGINE not in {"chrome", "chromium"}:
+        raise RuntimeError("Unsupported browser engine")
 
     controller = ChromiumController()
+    if action == "shutdown":
+        return await controller.close()
     if action == "launch_url":
         return await controller.navigate(url or DEFAULT_LAUNCH_URL)
     if action == "refresh_browser":

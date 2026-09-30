@@ -13,9 +13,9 @@ import asyncio
 import json
 import logging
 import os
-import re
 import time
 from typing import Any
+from urllib.parse import urlsplit
 
 from browser_ctl import ChromiumController
 
@@ -28,8 +28,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 HA_URL = (os.getenv("HA_URL") or "http://localhost:8123").rstrip("/")
-HA_URL_BASE = re.match(r"^(https?://[%w%.%-]+(?::\d+)?)", HA_URL)
-HA_URL_BASE = HA_URL_BASE.group(1).rstrip("/") if HA_URL_BASE else HA_URL
+HA_ORIGIN = urlsplit(HA_URL)
+HA_URL_BASE = f"{HA_ORIGIN.scheme}://{HA_ORIGIN.netloc}"
 HA_USERNAME = os.getenv("HA_USERNAME") or ""
 HA_PASSWORD = os.getenv("HA_PASSWORD") or ""
 LOGIN_DELAY_MS = int(float(os.getenv("LOGIN_DELAY") or "1") * 1000)
@@ -67,11 +67,13 @@ def build_auto_login_script() -> str:
     """Return JS that fills HA auth fields and submits the form."""
     return f"""
 (() => {{
+  const expectedOrigin = {json.dumps(HA_URL_BASE)};
   const username = {json.dumps(HA_USERNAME)};
   const password = {json.dumps(HA_PASSWORD)};
   const delayMs = {LOGIN_DELAY_MS};
   window.setTimeout(() => {{
     try {{
+      if (window.location.origin !== expectedOrigin) return;
       const usernameField = document.querySelector('input[autocomplete="username"]');
       const passwordField = document.querySelector('input[autocomplete="current-password"]');
       const checkbox = document.querySelector('ha-checkbox');
@@ -142,12 +144,13 @@ def build_settings_script(sidebar: str, theme: str) -> str:
 
 def is_auth_page(url: str) -> bool:
     """Return True if URL looks like HA auth page."""
-    return bool(re.match(rf"^{re.escape(HA_URL_BASE)}/auth/authorize\?response_type=code", url))
+    return is_ha_page(url) and urlsplit(url).path == "/auth/authorize"
 
 
 def is_ha_page(url: str) -> bool:
     """Return True if URL belongs to the current HA instance."""
-    return bool(url and (url + "/").startswith(HA_URL_BASE + "/"))
+    parsed = urlsplit(url)
+    return bool(url and parsed.scheme == HA_ORIGIN.scheme and parsed.netloc == HA_ORIGIN.netloc)
 
 
 def extract_evaluate_value(result: dict[str, Any]) -> Any:
@@ -167,8 +170,7 @@ async def main() -> None:
     settings_script = build_settings_script(sidebar, theme)
 
     logger.info(
-        "Chromium watchdog started: HA_URL=%s LOGIN_DELAY=%.1fs REFRESH=%ss SIDEBAR=%s THEME=%s",
-        HA_URL,
+        "Chrome watchdog started: LOGIN_DELAY=%.1fs HA_REFRESH=%ss SIDEBAR=%s THEME=%s",
         LOGIN_DELAY_MS / 1000,
         BROWSER_REFRESH,
         sidebar,
@@ -186,13 +188,13 @@ async def main() -> None:
             target = await controller.get_page_target()
             url = str(target.get("url") or "")
             if url and url != last_url:
-                logger.info("URL: %s", url)
+                logger.info("Active browser page changed")
                 last_url = url
 
-            if url and is_auth_page(url) and url != last_auth_url:
+            if HA_USERNAME and HA_PASSWORD and url and is_auth_page(url) and url != last_auth_url:
                 await controller.evaluate(auto_login_script)
                 last_auth_url = url
-                logger.info("Triggered HA auto-login for %s", url)
+                logger.info("Triggered HA auto-login")
 
             if url and is_ha_page(url) and not is_auth_page(url) and url != last_settings_url:
                 result = extract_evaluate_value(await controller.evaluate(settings_script))
@@ -211,14 +213,14 @@ async def main() -> None:
                     logger.warning("Failed to apply HA settings: %s", result)
                 last_settings_url = url
 
-            if BROWSER_REFRESH > 0 and url and url != "about:blank":
+            if BROWSER_REFRESH > 0 and is_ha_page(url) and not is_auth_page(url):
                 now = time.monotonic()
                 if now - last_reload_at >= BROWSER_REFRESH:
                     reload_count += 1
                     ignore_cache = reload_count % HARD_RELOAD_FREQ == 0
                     await controller.reload(ignore_cache=ignore_cache)
                     last_reload_at = now
-                    logger.info("Reloading%s: %s", " [HARD]" if ignore_cache else "", url)
+                    logger.info("Reloading HA dashboard%s", " [HARD]" if ignore_cache else "")
 
         except Exception as exc:  # pylint: disable=broad-except
             logger.warning("Watchdog loop error: %s", exc)
