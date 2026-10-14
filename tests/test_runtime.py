@@ -162,13 +162,26 @@ class ChromeTests(unittest.IsolatedAsyncioTestCase):
                     else:
                         self.fail('Chrome did not start: ' + Path(root, 'chrome.log').read_text())
                     self.assertEqual((await controller.get_page_target())['url'], 'http://127.0.0.1:8765/')
+                    # A CDP target URL is announced before the navigation commits.
+                    # Wait for the actual page origin/document before storage access.
+                    for _ in range(100):
+                        ready = await controller.evaluate('location.href === "http://127.0.0.1:8765/" && document.title === "Kiosk test" && document.readyState === "complete"')
+                        if watchdog.extract_evaluate_value(ready) is True:
+                            break
+                        await asyncio.sleep(0.05)
+                    else:
+                        self.fail('Fixture document did not load before profile test')
                     # Observe the actual listening address, not just the command line flag.
                     lines = subprocess.check_output(['ss', '-ltn'], text=True).splitlines()
                     listeners = [line.split()[3] for line in lines if ':9222 ' in line]
                     self.assertTrue(listeners)
                     self.assertTrue(all(addr in {'127.0.0.1:9222', '[::1]:9222'} for addr in listeners), listeners)
                     if iteration == 0:
-                        await controller.evaluate("localStorage.setItem('kiosk-test','retained'); document.cookie='kiosk_test=retained; Max-Age=3600; path=/'")
+                        written = await controller.evaluate("localStorage.setItem('kiosk-test','retained'); document.cookie='kiosk_test=retained; Max-Age=3600; path=/'; ({storage:localStorage.getItem('kiosk-test'),cookie:document.cookie})")
+                        self.assertNotIn('exceptionDetails', written)
+                        written_value = watchdog.extract_evaluate_value(written)
+                        self.assertEqual(written_value['storage'], 'retained')
+                        self.assertIn('kiosk_test=retained', written_value['cookie'])
                         await controller.navigate('http://127.0.0.1:8765/next')
                         await controller.reload()
                         await asyncio.sleep(0.2)
