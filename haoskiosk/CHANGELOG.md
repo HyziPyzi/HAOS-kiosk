@@ -10,7 +10,10 @@
 - Same Chrome profile, Google-managed Widevine, Xorg/modesetting GPU and HDMI audio configuration.
 - Automated launcher, security, actual Chrome/Openbox and regression checks. Physical NUC, remote and VOD playback validation still required.
 
-# Changelog
+## 2.0.0 — 2026-09-30
+
+- amd64 Debian/glibc migration with official Google Chrome Stable from Google's signed APT repository.
+- Persistent profile, Chrome-managed Widevine and loopback DevTools; physical HDMI kiosk retained.
 
 ## v1.3.1-welizard.8 - March 2026
 

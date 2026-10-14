@@ -1,4 +1,45 @@
-# Local validation — 2026-09-30
+# TV Launcher 2.1.0 validation — 2026-10-14
+
+Passed in [GitHub Actions](https://github.com/HyziPyzi/HAOS-kiosk/actions/runs/38622397444)
+on commit `f88cb0e`; subsequent release documentation changes do not alter runtime code.
+The amd64 Docker build installs official **Google Chrome 155.0.8059.79** on the same
+pinned Home Assistant Debian Trixie base. No Chrome or Widevine binaries/images
+are published. Local Docker Desktop could not start because of an inaccessible
+`sailor-ingest.sock`; the full container build and checks ran on the CI runner.
+
+- Docker build, Hadolint, Bash syntax/ShellCheck, YAML/JSON/Python/JavaScript syntax,
+  required executables and official Supervisor 2026.09.3 option validation passed.
+- **12 runtime tests passed**, including all seven baseline regression tests.
+- Actual Chrome in Xvfb at 1920×1080: six tiles fit without page scrolling,
+  focus follows arrow navigation, grid edges, Enter, Backspace, Escape and BrowserBack
+  handling, WWW validation and dialog navigation.
+- VOD destination strings checked against their intended URLs; all four tiles,
+  HA tile and WWW dialog navigate to local fixture pages in the same tab.
+  These fixtures do not test remote service availability, logins or playback.
+- Actual Openbox generated from production `run.sh`: xdotool Ctrl+Alt+H returns
+  from a fixture that consumes browser keyboard events to the launcher.
+- Existing bearer-authenticated `/launch_url` invokes the real Chrome CDP CLI.
+- Loopback launcher works with a bearer token configured; protected REST commands
+  still require it. LAN clients, forged forwarded headers, foreign Origin and
+  non-loopback Host headers cannot access the launcher.
+- A configured second listener also serves loopback on the same port, retaining
+  API authorization. `home_assistant` startup and HTTP failure fallback checked.
+- Profile/cookies/local storage survive Chrome restart; Widevine EME negotiation
+  returns `available`. Audio mode selection regression checks passed.
+- Clean 1080p screenshot inspected; CI saves it as `tv-launcher-preview`.
+
+Still required on the physical NUC: upgrade/startup under HAOS, launcher and global
+shortcut with the actual keyboard/remote, USB/Bluetooth HID pairing/keycodes,
+Intel i915/GPU decoding, HDMI video/audio after the update, and actual protected
+Netflix/Max/Prime playback. Version 2.0.0 HDMI display was reported working by the
+user; this does not establish hardware compatibility of the new launcher release.
+Bluetooth pairing and HDMI-CEC support have not been added.
+
+Rollback: choose `start_page: home_assistant` to restore the previous start page.
+For the full previous version/profile use an app backup made before upgrading;
+the source baseline is also preserved under tag `v2.0.0`.
+
+# Previous 2.0.0 local validation — 2026-09-30
 
 The final amd64 image builds successfully in Docker Desktop's Linux engine.
 Google Chrome Stable installed through Google's signed APT repository:
