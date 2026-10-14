@@ -58,6 +58,14 @@
     const back = ['Escape', 'BrowserBack', 'GoBack'].includes(event.key) || (event.altKey && event.key === 'ArrowLeft') || (event.key === 'Backspace' && document.activeElement !== input);
     if (back) { event.preventDefault(); if (dialog.open) closeUrlDialog(); else select(0); return; }
     if (dialog.open) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        if (!event.repeat) {
+          if (document.activeElement === controls[1]) closeUrlDialog();
+          else document.getElementById('url-form').requestSubmit();
+        }
+        return;
+      }
       // Left/right remain native text-cursor keys while editing the URL.
       if (['ArrowUp', 'ArrowDown'].includes(event.key) || (document.activeElement !== input && ['ArrowLeft', 'ArrowRight'].includes(event.key))) {
         event.preventDefault();
