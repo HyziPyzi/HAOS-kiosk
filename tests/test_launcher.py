@@ -129,8 +129,12 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                     await page.call('Input.dispatchKeyEvent', {'type': 'keyUp', **params})
                 await controller._with_page(worker)
             async def return_home():
+                # When reloading the same URL the old DOM is still a launcher.
+                # Do not send test keys or replace fixture URLs until the new
+                # document commits; otherwise the pending reload wins the race.
+                await value('window.__kiosk_test_old_document = true')
                 await controller.navigate(launcher_url)
-                await wait_for('document.querySelectorAll(".tile").length === 6 && document.querySelector(".tile.selected") !== null')
+                await wait_for('!window.__kiosk_test_old_document && document.querySelectorAll(".tile").length === 6 && document.querySelector(".tile.selected") !== null')
             try:
                 for _ in range(60):
                     if Path('/tmp/.X11-unix/X98').exists(): break

@@ -5,6 +5,8 @@ on commit `f88cb0e`; subsequent release documentation changes do not alter runti
 The profile regression test additionally waits for the fixture document to commit
 and asserts storage/cookie writes before restarting Chrome. A CDP target's URL can
 be announced before that document is ready; the persistence assertions remain strict.
+Launcher navigation tests also wait for a fresh document when reloading the same
+URL, so test keystrokes cannot be sent to the outgoing launcher DOM.
 The amd64 Docker build installs official **Google Chrome 155.0.8059.79** on the same
 pinned Home Assistant Debian Trixie base. No Chrome or Widevine binaries/images
 are published. Local Docker Desktop could not start because of an inaccessible
