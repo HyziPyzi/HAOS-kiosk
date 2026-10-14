@@ -3,7 +3,7 @@
 ARG BUILD_FROM=ghcr.io/home-assistant/base-debian:trixie@sha256:01e153da2c2579f2cf5010901da7bc31b1dd035921ea46ccaff22e521efa74a7
 FROM ${BUILD_FROM}
 
-ARG BUILD_VERSION=2.0.0
+ARG BUILD_VERSION=2.1.0
 ARG BUILD_ARCH=amd64
 ENV ADDON_VERSION=${BUILD_VERSION} DISPLAY=:0 LANG=C.UTF-8
 LABEL io.hass.version="${BUILD_VERSION}" io.hass.type="app" io.hass.arch="${BUILD_ARCH}"
@@ -40,5 +40,6 @@ WORKDIR /
 COPY xorg.conf.default /etc/X11/
 COPY translations/*.yaml /translations/
 COPY run.sh browser_ctl.py chromium_watchdog.py rest_server.py mouse_touch_inputs.py gesture_commands.json /
+COPY launcher/ /launcher/
 RUN chmod 0755 /run.sh
 CMD ["/run.sh"]

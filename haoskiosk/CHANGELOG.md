@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.0 — 2026-10-14
+
+- Local TV Launcher with six large tiles, dark 1080p layout and HID keyboard navigation.
+- `start_page: launcher` default; `home_assistant` restores previous startup.
+- Global Openbox Ctrl+Alt+H shortcut returns to the launcher from any website.
+- WWW address dialog; HA tile uses the existing dashboard options.
+- Loopback-only launcher on the existing HTTP server, including installations with authenticated LAN REST access. No API authentication bypass.
+- Same Chrome profile, Google-managed Widevine, Xorg/modesetting GPU and HDMI audio configuration.
+- Automated launcher, security, actual Chrome/Openbox and regression checks. Physical NUC, remote and VOD playback validation still required.
+
+# Changelog
+
 ## v1.3.1-welizard.8 - March 2026
 
 - Launch Neiri directly by URL instead of relying on the intermediate

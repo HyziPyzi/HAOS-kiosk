@@ -68,6 +68,7 @@ import sys
 from contextlib import suppress
 from datetime import datetime
 from functools import wraps
+from pathlib import Path
 from typing import Any, Awaitable, cast, Callable, Final, Literal, TypedDict, TypeVar
 from urllib.parse import urlsplit
 from aiohttp import web  #type: ignore[import-not-found] #pylint: disable=import-error
@@ -97,6 +98,14 @@ MAX_CONCURRENT_COMMANDS: int = 5
 SHORT_TIMEOUT: int = 5  # Timeout used for simple commands
 
 DEFAULT_LAUNCH_URL = f"{(os.getenv('HA_URL') or 'about:blank').rstrip('/')}/{os.getenv('HA_DASHBOARD') or ''}".strip('/')
+LAUNCHER_DIR = Path(__file__).resolve().parent / "launcher"
+LAUNCHER_HEADERS = {
+    "Cache-Control": "no-store",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Cross-Origin-Resource-Policy": "same-origin",
+}
 EDITOR_CONFIG_COMMAND = "__editor_config__"
 
 DEFAULT_DISPLAY_CONFIG: dict[str, Any] = {
@@ -1090,6 +1099,16 @@ async def security_middleware(
     logging.debug("[request] %s %s from %s", request.method, request.path, remote_ip)  # Log every request for debug
 
     cmd_name = getattr(handler, "cmd_name", None)
+    if request.path == "/launcher" or request.path.startswith("/launcher/"):
+        # Only static UI/config is exempt from bearer auth, never a control API.
+        # Literal loopback Host and actual peer checks also block DNS rebinding.
+        origin = request.headers.get("Origin")
+        if (remote_ip not in ("127.0.0.1", "::1")
+                or not re.fullmatch(r"127\.0\.0\.1(?::\d+)?", request.host)
+                or (origin and origin != f"{request.scheme}://{request.host}")
+                or request.method not in ("GET", "HEAD")):
+            return web.json_response({"success": False, "error": "Launcher is loopback-only"}, status=403)
+        return await handler(request)
     if cmd_name is None:
         return await handler(request)
 
@@ -1132,6 +1151,29 @@ async def create_app() -> web.Application:
     """Create and configure the aiohttp Application instance."""
 
     app = web.Application(middlewares=[security_middleware])
+
+    async def launcher_page(_: web.Request) -> web.Response:
+        return web.Response(body=(LAUNCHER_DIR / "index.html").read_bytes(), content_type="text/html", headers=LAUNCHER_HEADERS)
+
+    async def launcher_asset(request: web.Request) -> web.Response:
+        # Explicit allowlist; no path traversal or profile files can be served.
+        name = request.match_info["asset"]
+        content_type = {"app.js": "application/javascript", "style.css": "text/css"}.get(name)
+        if content_type is None:
+            raise web.HTTPNotFound()
+        return web.Response(body=(LAUNCHER_DIR / name).read_bytes(), content_type=content_type, headers=LAUNCHER_HEADERS)
+
+    async def launcher_config(_: web.Request) -> web.Response:
+        # This response contains only the HA destination, never options/secrets.
+        parsed = urlsplit(DEFAULT_LAUNCH_URL)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
+            return web.json_response({"error": "Invalid HA URL"}, status=400, headers=LAUNCHER_HEADERS)
+        return web.json_response({"ha_url": DEFAULT_LAUNCH_URL}, headers=LAUNCHER_HEADERS)
+
+    app.router.add_get("/launcher", launcher_page)
+    app.router.add_get("/launcher/", launcher_page)
+    app.router.add_get("/launcher/config", launcher_config)
+    app.router.add_get("/launcher/{asset}", launcher_asset)
 
     async def editor_page(_: web.Request) -> web.Response:
         return web.Response(text=EDITOR_HTML, content_type="text/html")
@@ -1223,6 +1265,10 @@ async def main() -> None:
 
     try:
         await site.start()
+        # Keep the launcher local when an existing installation binds REST to
+        # its LAN IP. Both listeners retain exactly the same API authentication.
+        if REST_IP not in ("127.0.0.1", "0.0.0.0"):
+            await web.TCPSite(runner, "127.0.0.1", REST_PORT).start()
         logging.info("Server started – ready to accept requests")
     except OSError as exc:
         logging.error("Failed to bind to %s:%s → %s", REST_IP, REST_PORT, exc)

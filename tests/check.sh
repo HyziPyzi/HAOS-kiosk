@@ -20,6 +20,7 @@ assert config['slug'] == 'haoskiosk_chrome'
 assert config['video'] and config['audio']
 assert not any('/dev/dri' in d for d in config['devices'])
 assert config['options']['browser_engine'] == 'chrome'
+assert config['options']['start_page'] == 'launcher'
 assert config['options']['keyboard_layout'] == 'pl'
 assert config['options']['screen_timeout'] == 0
 for path in (Path('haoskiosk/Dockerfile'), Path('haoskiosk/run.sh')):

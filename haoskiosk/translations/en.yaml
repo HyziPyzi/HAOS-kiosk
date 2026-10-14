@@ -36,6 +36,12 @@ configuration:
     items:
       chrome: "Google Chrome Stable"
       chromium: "Google Chrome Stable (compatibility alias)"
+  start_page:
+    name: "Start page"
+    description: "TV Launcher by default; choose home_assistant to restore the previous HA dashboard startup."
+    items:
+      launcher: "TV Launcher"
+      home_assistant: "Home Assistant dashboard"
   screen_timeout:
     name: "Screen Timeout"
     description: "Time in seconds until screen blanks; 0 for never [Default: 0]"

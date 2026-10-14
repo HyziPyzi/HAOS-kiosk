@@ -142,6 +142,7 @@ load_config_var LOGIN_DELAY 1.0
 load_config_var ZOOM_LEVEL 100
 load_config_var BROWSER_REFRESH 600
 load_config_var BROWSER_ENGINE "chrome"
+load_config_var START_PAGE "launcher"
 load_config_var SCREEN_TIMEOUT 0
 load_config_var OUTPUT_NUMBER 1  # Which *CONNECTED* Physical video output to use (Defaults to 1)
 #NOTE: By only considering *CONNECTED* output, this maximizes the chance of finding an output
@@ -165,6 +166,13 @@ load_config_var COMMAND_WHITELIST "^$" 1  # Default is no user commands allowed
 load_config_var TOUCH_DEBUG_LEVEL 1
 load_config_var DEBUG_MODE false
 load_config_var VNC_SERVER ""  1 #Mask password in log
+
+# The launcher is always reached through loopback, even with a LAN REST binding.
+LAUNCHER_URL="http://127.0.0.1:$REST_PORT/launcher"
+case "$START_PAGE" in
+    launcher|home_assistant) ;;
+    *) bashio::log.error "Unsupported start_page"; exit 1 ;;
+esac
 
 # Credentials are optional; manual login persists in the browser profile.
 
@@ -484,6 +492,13 @@ mv /tmp/rc.new.xml "$RC_XML"
 
 # Add new key bindings
 cat <<'EOF' > /tmp/new_keybinds.xml
+  <!-- Global TV Home shortcut, independent of website keyboard handlers. -->
+  <keybind key="C-A-h">
+    <action name="Execute">
+      <command>python3 /browser_ctl.py launcher</command>
+    </action>
+  </keybind>
+
   <!-- Toggle Onboard onscreen keyboard: Ctrl+Alt+o -->
   <keybind key="C-A-o">
     <action name="Execute">
@@ -751,6 +766,27 @@ python3 -u /mouse_touch_inputs.py -d "$TOUCH_DEBUG_LEVEL" -w "$COMMAND_WHITELIST
 #### Start  HAOSKiosk REST server
 bashio::log.info "Starting HAOSKiosk REST server..."
 python3 -u /rest_server.py &
+REST_PID=$!
+
+# Preserve the old HA startup if the local HTTP server cannot become ready.
+START_URL="${HA_URL%/}/${HA_DASHBOARD#/}"
+if [ "$START_PAGE" = launcher ]; then
+    launcher_ready=false
+    for ((attempt=0; attempt<30; attempt++)); do
+        if curl --noproxy '*' -fsS --max-time 1 "$LAUNCHER_URL" >/dev/null 2>&1; then
+            launcher_ready=true
+            break
+        fi
+        kill -0 "$REST_PID" 2>/dev/null || break
+        sleep 0.2
+    done
+    if [ "$launcher_ready" = true ]; then
+        START_URL="$LAUNCHER_URL"
+        bashio::log.info "TV Launcher ready on loopback; global shortcut Ctrl+Alt+H"
+    else
+        bashio::log.warning "TV Launcher unavailable; falling back to Home Assistant"
+    fi
+fi
 
 #### Optionally start vnc server
 if [ -n "$VNC_SERVER" ]; then
@@ -791,7 +827,7 @@ if [ "$DEBUG_MODE" != true ]; then
         seed_chromium_preferences
     fi
 
-    "$BROWSER" "${BROWSER_FLAGS[@]}" "$HA_URL/$HA_DASHBOARD" &
+    "$BROWSER" "${BROWSER_FLAGS[@]}" "$START_URL" &
     CHROME_PID=$!
     bashio::log.info "Launching Google Chrome (PID=$!) with persistent profile"
 

@@ -21,6 +21,7 @@ from aiohttp import ClientSession, ClientTimeout, WSMsgType  # type: ignore[impo
 BROWSER_ENGINE = (os.getenv("BROWSER_ENGINE") or "chrome").strip().lower()
 CHROMIUM_DEVTOOLS_PORT = int(os.getenv("CHROMIUM_DEVTOOLS_PORT", "9222"))
 CHROMIUM_DEVTOOLS_HOST = "127.0.0.1"
+LAUNCHER_URL = f"http://127.0.0.1:{int(os.getenv('REST_PORT', '8080'))}/launcher"
 DEFAULT_LAUNCH_URL = (
     f"{(os.getenv('HA_URL') or 'about:blank').rstrip('/')}/{os.getenv('HA_DASHBOARD') or ''}"
 ).strip("/") or "about:blank"
@@ -256,6 +257,12 @@ async def run_browser_action(action: str, url: str | None = None) -> dict[str, A
         return await controller.close()
     if action == "launch_url":
         return await controller.navigate(url or DEFAULT_LAUNCH_URL)
+    if action == "launcher":
+        result = await controller.navigate(LAUNCHER_URL)
+        async def foreground(page: ChromiumPageSession, _: dict[str, Any]) -> dict[str, Any]:
+            return await page.call("Page.bringToFront")
+        await controller._with_page(foreground)
+        return result
     if action == "refresh_browser":
         return await controller.reload(ignore_cache=True)
     if action == "back":
@@ -270,7 +277,7 @@ async def run_browser_action(action: str, url: str | None = None) -> dict[str, A
 async def _main_async(argv: list[str]) -> int:
     if len(argv) < 2:
         print(
-            "Usage: browser_ctl.py <launch_url|refresh_browser|back|forward|page_info> [url]",
+            "Usage: browser_ctl.py <launcher|launch_url|refresh_browser|back|forward|page_info> [url]",
             file=sys.stderr,
         )
         return 2

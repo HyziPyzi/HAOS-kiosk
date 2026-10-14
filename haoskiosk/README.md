@@ -2,7 +2,9 @@
 
 Eksperymentalny fork [Welizard-bot/HAOS-kiosk](https://github.com/Welizard-bot/HAOS-kiosk), oparty na projekcie Jeffa Kosowsky'ego. Uruchamia Xorg, Openbox i **oficjalny Google Chrome Stable** na fizycznym HDMI komputera z Home Assistant OS. Home Assistant i Supervisor działają dalej w tle.
 
-Obsługiwana jest wyłącznie architektura **amd64/x86_64**. Docelowy sprzęt do testów to **Intel NUC6i3SYK, Core i3-6100U, Intel HD Graphics 520 (Skylake), 8 GB RAM**. Testy lokalne wykonano w Dockerze i wirtualnym X11; fizyczny NUC z HAOS, HDMI, i915 i serwisami VOD nie został jeszcze przetestowany.
+Obsługiwana jest wyłącznie architektura **amd64/x86_64**. Docelowy sprzęt to **Intel NUC6i3SYK, Core i3-6100U, Intel HD Graphics 520 (Skylake), 8 GB RAM**. Użytkownik potwierdził wyświetlanie HA przez HDMI w wersji 2.0.0. Nowy launcher 2.1.0 wymaga jeszcze testu na fizycznym NUC-u. Testy automatyczne używają wirtualnego X11; nie potwierdzają Bluetooth, HDMI audio ani odtwarzania VOD na tym sprzęcie.
+
+Wersja **2.1.0** dodaje lokalny **TV Launcher**: ciemny interfejs na telewizor 1920×1080, duże kafelki Netflix, Max, Prime Video, YouTube, Home Assistant i WWW. Launcher korzysta z istniejącego serwera HTTP i tego samego profilu Google Chrome.
 
 Debian/glibc i Google Chrome zwiększają szansę zgodności z DRM. Widevine pochodzi wyłącznie z instalacji i mechanizmów Chrome. Repozytorium nie zawiera Chrome, plików `.deb` ani binarnego CDM. Nie publikujemy obrazów kontenerów z Chrome; HAOS buduje obraz lokalnie i pobiera pakiet z podpisanego repozytorium APT Google. Obowiązują warunki korzystania z Google Chrome i usług VOD.
 
@@ -13,7 +15,7 @@ Debian/glibc i Google Chrome zwiększają szansę zgodności z DRM. Widevine poc
 3. Podłącz telewizor do HDMI NUC-a, włącz TV i wybierz odpowiednie wejście **przed startem aplikacji**. Podłącz klawiaturę/mysz lub ekran dotykowy USB.
 4. Otwórz **Ustawienia → Apps → sklep → ⋮ → Repositories** (w starszym interfejsie: Dodatki → Sklep → Repozytoria).
 5. Wklej **https://github.com/HyziPyzi/HAOS-kiosk** i odśwież sklep.
-6. Wybierz **HAOS Kiosk Display - Chrome DRM**, wersja **2.0.0**, i zainstaluj. Pierwszy build pobiera pakiety i może potrwać kilka minut. Potrzebny jest dostęp do internetu i wolne miejsce na dysku.
+6. Wybierz **HAOS Kiosk Display - Chrome DRM**, wersja **2.1.0**, i zainstaluj. Pierwszy build pobiera pakiety i może potrwać kilka minut. Potrzebny jest dostęp do internetu i wolne miejsce na dysku.
 7. Zatrzymaj oryginalny kiosk przed uruchomieniem tego forka. Oba repo mogą być dodane do sklepu, ale dwa Xorg nie mogą jednocześnie sterować tym samym ekranem. Slug `haoskiosk_chrome` i prywatny katalog konfiguracji są oddzielne od oryginału.
 8. Zapisz konfigurację poniżej, uruchom aplikację i sprawdź zakładkę **Logi**. Po weryfikacji włącz automatyczny start.
 
@@ -23,6 +25,7 @@ Zmień odpowiednie pola istniejącej konfiguracji; zachowaj pozostałe opcje z f
 
 ```yaml
 browser_engine: chrome
+start_page: launcher
 ha_url: http://localhost:8123
 ha_dashboard: ""
 screen_timeout: 0
@@ -38,11 +41,35 @@ vnc_server: ""
 debug_mode: false
 ```
 
-`chromium` jest aliasem uruchamiającym Google Chrome. Luakit i Alpine Chromium nie są instalowane. Domyślnie Chrome otwiera dashboard HA. `ha_username` i `ha_password` są opcjonalne: możesz zalogować się ręcznie na ekranie. Jeśli chcesz automatyczne logowanie do HA, wpisz własne dane w konfiguracji aplikacji, najlepiej konto bez praw administratora. Automatyczne logowanie działa wyłącznie dla originu HA; nie wpisuje danych na stronach VOD. Nie umieszczaj haseł w URL.
+`chromium` jest aliasem uruchamiającym Google Chrome. Luakit i Alpine Chromium nie są instalowane. Domyślnie Chrome otwiera TV Launcher; `start_page: home_assistant` przywraca start na dashboardzie wskazanym przez `ha_url` i `ha_dashboard`. `ha_username` i `ha_password` są opcjonalne: możesz zalogować się ręcznie na ekranie. Jeśli chcesz automatyczne logowanie do HA, wpisz własne dane w konfiguracji aplikacji, najlepiej konto bez praw administratora. Automatyczne logowanie działa wyłącznie dla originu HA; nie wpisuje danych na stronach VOD. Nie umieszczaj haseł w URL.
 
 `output_number` wybiera N-te **podłączone** wyjście zgłoszone przez xrandr. Przy jednym TV użyj `1`. Przy dwóch ekranach sprawdź listę w logach i ewentualnie wybierz `2`. Pozostałe podłączone wyjścia są wyłączane. Wybrany output i pełny wynik xrandr są logowane.
 
 `screen_timeout: 0` wyłącza automatyczne wygaszanie. `browser_refresh` dotyczy tylko stron HA; Netflix, Max, Prime, Spotify i YouTube nie są cyklicznie przeładowywane przez watchdog. `0` całkowicie wyłącza okresowe przeładowanie.
+
+## TV Launcher i pilot HID
+
+Na fizycznym ekranie Chrome otwiera `http://127.0.0.1:<rest_port>/launcher`. Nie otwieraj tego adresu na swoim laptopie: localhost odnosi się do urządzenia, na którym działa przeglądarka. Launcher nie wymaga tokenu REST, ponieważ jego strona, zasoby i konfiguracja są dostępne wyłącznie przez loopback. Polecenia API nadal zachowują istniejącą autoryzację. Przy konfiguracji `rest_ip` na adres LAN serwer dodatkowo nasłuchuje na loopback na tym samym porcie; launcher jest blokowany dla klientów sieciowych również z tokenem. Nie jest dodawany nowy publiczny port.
+
+- **Strzałki**: wybierają kafelek w siatce; jasna ramka pokazuje wybór. **Enter / OK**: otwiera stronę w bieżącym oknie, z zachowaniem profilu i logowań.
+- **Wstecz** (`Escape`, HID `BrowserBack` / `GoBack`, `Alt+Left`, albo Backspace poza polem tekstowym): zamyka formularz WWW; na głównym ekranie wybiera pierwszy kafelek. Na stronie VOD działanie Wstecz zależy od strony i Chrome.
+- **Ctrl+Alt+H**: globalny powrót do launchera przez Openbox i lokalne CDP, także gdy strona przechwytuje klawisze. Nie zamyka Chrome ani nie usuwa danych. Launcher zapamiętuje ostatni wybrany kafelek na czas sesji. Skrót jest dostępny również z `start_page: home_assistant`.
+- **Home Assistant**: otwiera dotychczasowy `ha_url` / `ha_dashboard`. API `/launch_url` bez adresu nadal otwiera dashboard HA; jego znaczenie nie zmieniło się.
+- **WWW**: otwiera formularz adresu. Wpisz `youtube.com`, pełny adres HTTPS lub adres lokalny z `http://`. Bez schematu wybierane jest HTTPS. Dozwolone są tylko HTTP/HTTPS, bez loginu/hasła w URL. Strzałki góra/dół przechodzą między polem i przyciskami; lewo/prawo w polu edytują tekst. Enter otwiera adres, Wstecz anuluje. Backspace w polu usuwa znak.
+- Do wpisywania adresów użyj klawiatury USB, pilota z klawiaturą lub istniejącego Onboard (`onscreen_keyboard: true`, pokazanie przez **Ctrl+Alt+O**). Pełnego wpisywania tekstu samymi strzałkami nie dodano.
+
+Pilot musi być widoczny dla HAOS/Xorg jako urządzenie HID klawiatury/myszy i wysyłać odpowiednie klawisze. Nie każdy pilot wysyła Enter lub BrowserBack. Nie dodano parowania Bluetooth, obsługi HDMI-CEC ani mapowania przycisków producentów. **Fizyczny pilot USB/Bluetooth i obsługa serwisów Netflix/Max/Prime przez pilot nie są jeszcze potwierdzone.** Nawigacja wewnątrz stron VOD może wymagać myszy/air mouse; launcher nie zmienia ich interfejsu.
+
+Jeśli launcher nie odpowiada przy starcie, dodatek loguje ostrzeżenie i uruchamia dotychczasowy dashboard HA. Sprawdź konflikt portu `rest_port` i logi serwera. Strona nie pobiera zewnętrznych skryptów, fontów ani grafik i nie zapisuje tokenu REST w przeglądarce.
+
+## Aktualizacja 2.0.0 → 2.1.0 i powrót
+
+1. Przed aktualizacją zrób backup dodatku **w wersji 2.0.0**, zawierający jego dane i opcje; pobierz backup poza NUC. Kopia `cold` zatrzymuje Chrome na czas zapisu. Zachowaj również pełny backup HA i klucz potrzebny do jego odtworzenia.
+2. Odśwież sklep/repozytoria w HA i wybierz aktualizację istniejącego **HAOS Kiosk Display - Chrome DRM**. Nie odinstalowuj działającego dodatku. Slug, profil, GPU, audio i dotychczasowe opcje pozostają te same.
+3. Ustaw `start_page: launcher` i uruchom dodatek. Sprawdź obraz, audio, sześć kafelków i skrót `Ctrl+Alt+H`. Dla powrotu do dotychczasowej strony ustaw `start_page: home_assistant` i zrestartuj dodatek.
+4. Dla pełnego cofnięcia wersji użyj **przywrócenia dodatku i jego danych z backupu 2.0.0**. Cofnięcie przywróci również stan profilu z daty kopii. To lepsze rozwiązanie niż wymiana binarki pod nowszym profilem Chrome.
+
+Kod 2.0.0 jest zachowany jako tag [`v2.0.0`](https://github.com/HyziPyzi/HAOS-kiosk/tree/v2.0.0). Tag służy odtworzeniu źródeł; sklep HA instaluje wersję z domyślnej gałęzi i nie oferuje automatycznego wyboru tagów. Build dowolnej wersji pobiera aktualny Google Chrome, więc sam tag nie przypina starej wersji przeglądarki.
 
 ## Trwały profil i backup
 
@@ -170,13 +197,13 @@ Netflix, Max i Prime mogą ograniczać jakość według OS, przeglądarki, pozio
 Baza: oficjalny HA `base-debian:trixie`, przypięty digest manifestu w Dockerfile. amd64 jest sprawdzane również przez `dpkg --print-architecture`. `BUILD_FROM` ma jawny domyślny obraz; można go nadpisać świadomie. `build.yaml` nie jest wymagany ani używany przez obecny Supervisor. S6, bashio i TempIO pochodzą z bazy HA.
 
 ```sh
-docker build --platform linux/amd64 --build-arg BUILD_VERSION=2.0.0 --build-arg BUILD_ARCH=amd64 -t haoskiosk-chrome:test haoskiosk
+docker build --platform linux/amd64 --build-arg BUILD_ARCH=amd64 -t haoskiosk-chrome:test haoskiosk
 docker build -f tests/Dockerfile -t haoskiosk-chrome:checks .
 docker run --rm -v "$PWD:/src:ro" haoskiosk-chrome:checks
 docker run --rm --entrypoint hadolint -v "$PWD:/src:ro" hadolint/hadolint:latest-alpine --ignore DL3008 /src/haoskiosk/Dockerfile
 ```
 
-Testy obejmują YAML/JSON, składnię wszystkich plików Python, shellcheck, dostępność programów, rzeczywisty Chrome w Xvfb z flagami produkcyjnymi, CDP, zachowanie cookies/local storage po normalnym restarcie, negocjację EME Widevine, nasłuch DevTools tylko loopback, autoryzację REST i ograniczenie URL/originu. Nie zastępują testów HDMI, i915, audio HAOS, instalacji na NUC-u ani licencji serwisów. Nie publikuj wynikowego obrazu zawierającego Chrome.
+Testy obejmują YAML/JSON, składnię Python/JavaScript, shellcheck, dostępność programów, rzeczywisty Chrome w Xvfb z flagami produkcyjnymi, CDP, zachowanie cookies/local storage po normalnym restarcie, negocjację EME Widevine, nasłuch DevTools tylko loopback, autoryzację REST i ograniczenie URL/originu. Testy launchera sprawdzają geometrię 1920×1080, strzałki/Enter/Wstecz, formularz WWW, adresy kafelków, nawigację do lokalnych stron testowych, prawdziwy skrót Openbox z innej strony i zachowanie `/launch_url`. CI zapisuje zrzut launchera jako osobny artefakt. Nie zastępują testów HDMI, i915, audio HAOS, fizycznego pilota na NUC-u ani licencji serwisów. Nie publikuj wynikowego obrazu zawierającego Chrome.
 
 Aktualne źródła sprawdzone 2026-09-30: [HA Apps configuration](https://developers.home-assistant.io/docs/apps/configuration/), [migracja buildera do BuildKit](https://developers.home-assistant.io/blog/2026/04/02/builder-migration/), [oficjalne obrazy HA Debian](https://github.com/home-assistant/docker-base), [konfiguracja urządzeń Supervisora](https://github.com/home-assistant/supervisor/blob/main/supervisor/docker/app.py), [klucze podpisujące Google](https://www.google.com/linuxrepositories/).
 
