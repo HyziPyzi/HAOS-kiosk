@@ -13,6 +13,7 @@ import unittest
 from unittest.mock import patch
 import xml.etree.ElementTree as ET
 import socket
+import sys
 
 from aiohttp import ClientSession, web
 from aiohttp.test_utils import TestClient, TestServer, make_mocked_request
@@ -207,7 +208,11 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual((await controller.get_page_target())['url'], f'http://127.0.0.1:8767/fixture/{app_name}')
                 # The actual Openbox shortcut returns from a page that swallows keys.
                 window = subprocess.check_output(['xdotool', 'search', '--onlyvisible', '--class', 'Google-chrome'], env=env, text=True).splitlines()[-1]
-                subprocess.run(['xdotool', 'windowactivate', '--sync', window, 'key', '--clearmodifiers', 'ctrl+alt+h'], env=env, check=True)
+                subprocess.run(['xdotool', 'windowactivate', '--sync', window], env=env, check=True)
+                self.assertEqual(subprocess.check_output(['xdotool', 'getactivewindow'], env=env, text=True).strip(), window)
+                # A real remote/key press has a dwell time. Avoid racing the WM
+                # grab with a near-instant sequence of injected X11 modifiers.
+                subprocess.run(['xdotool', 'key', '--delay', '100', '--clearmodifiers', 'ctrl+alt+h'], env=env, check=True)
                 await wait_for('document.title === "TV Home · HAOS Kiosk"')
                 self.assertEqual((await controller.get_page_target())['url'], launcher_url)
                 self.assertEqual(await value('document.activeElement.dataset.app'), 'youtube')
@@ -235,6 +240,7 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                 chrome = None
                 print('PASS: 1080p launcher, HID-style keys, local navigation fixtures, authenticated API and real Openbox global shortcut')
             finally:
+                failed = sys.exc_info()[0] is not None
                 for process in (chrome, wm, xvfb):
                     if process is not None:
                         process.terminate()
@@ -244,3 +250,5 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                 await runner.cleanup()
                 await fixture_runner.cleanup()
                 log.close()
+                if failed:
+                    print('Isolated Chrome/Openbox test log:', (root / 'desktop.log').read_text()[-8000:])
