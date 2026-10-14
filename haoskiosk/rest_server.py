@@ -97,7 +97,7 @@ ALLOW_ALL_USER_COMMANDS: bool = os.getenv("ALLOW_ALL_USER_COMMANDS", "false").lo
 MAX_CONCURRENT_COMMANDS: int = 5
 SHORT_TIMEOUT: int = 5  # Timeout used for simple commands
 
-DEFAULT_LAUNCH_URL = f"{(os.getenv('HA_URL') or 'about:blank').rstrip('/')}/{os.getenv('HA_DASHBOARD') or ''}".strip('/')
+DEFAULT_LAUNCH_URL = f"{(os.getenv('HA_URL') or 'http://localhost:8123').rstrip('/')}/{os.getenv('HA_DASHBOARD') or ''}".strip('/')
 LAUNCHER_DIR = Path(__file__).resolve().parent / "launcher"
 LAUNCHER_HEADERS = {
     "Cache-Control": "no-store",
