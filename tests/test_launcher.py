@@ -108,7 +108,9 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
             launcher_url = 'http://127.0.0.1:8766/launcher'
             controller = browser.ChromiumController(port=9223)
             async def value(expression):
-                return watchdog.extract_evaluate_value(await controller.evaluate(expression))
+                result = await controller.evaluate(expression)
+                self.assertNotIn('exceptionDetails', result, result)
+                return watchdog.extract_evaluate_value(result)
             async def wait_for(expression):
                 for _ in range(100):
                     try:
@@ -117,7 +119,8 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                     except Exception:
                         pass
                     await asyncio.sleep(0.05)
-                self.fail('Timed out: ' + expression)
+                details = await value('({url:location.href,title:document.title,focus:document.activeElement.id || document.activeElement.dataset.app,dialog:document.querySelector("dialog")?.open,status:document.querySelector("#status")?.textContent})')
+                self.fail('Timed out: ' + expression + '; page=' + str(details))
             async def key(name):
                 codes = {'ArrowRight': 39, 'ArrowLeft': 37, 'ArrowUp': 38, 'ArrowDown': 40, 'Enter': 13, 'Backspace': 8, 'Escape': 27, 'BrowserBack': 166}
                 async def worker(page, _):
@@ -193,7 +196,8 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                 # All four VOD tiles navigate in the same Chrome tab using local fixtures.
                 for app_name in ('netflix', 'max', 'prime', 'youtube'):
                     await return_home()
-                    await controller.evaluate(f'const t=document.querySelector("[data-app={app_name}]"); t.dataset.url="http://127.0.0.1:8767/fixture/{app_name}"; t.focus();')
+                    active = await value(f'(() => {{ const tile=document.querySelector("[data-app={app_name}]"); tile.dataset.url="http://127.0.0.1:8767/fixture/{app_name}"; tile.focus(); return document.activeElement.dataset.app; }})()')
+                    self.assertEqual(active, app_name)
                     await key('Enter')
                     await wait_for(f'document.title === "{app_name}"')
                     self.assertEqual((await controller.get_page_target())['url'], f'http://127.0.0.1:8767/fixture/{app_name}')
