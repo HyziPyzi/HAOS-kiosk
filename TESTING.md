@@ -1,7 +1,7 @@
 # TV Launcher 2.1.0 validation — 2026-10-14
 
-Passed in [GitHub Actions](https://github.com/HyziPyzi/HAOS-kiosk/actions/runs/38622397444)
-on commit `f88cb0e`; subsequent release documentation changes do not alter runtime code.
+Passed in [GitHub Actions](https://github.com/HyziPyzi/HAOS-kiosk/actions/runs/38623977297)
+on commit `9ddcb30`; subsequent release documentation changes do not alter runtime code.
 The profile regression test additionally waits for the fixture document to commit
 and asserts storage/cookie writes before restarting Chrome. A CDP target's URL can
 be announced before that document is ready; the persistence assertions remain strict.
