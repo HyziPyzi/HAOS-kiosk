@@ -12,6 +12,8 @@ import subprocess
 import tempfile
 import unittest
 
+from aiohttp import ClientSession
+
 import browser_ctl as browser
 import chrome_policy as policy
 from chromium_watchdog import extract_evaluate_value
@@ -53,6 +55,19 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                                               'chrome.storage.local.get(["admin.noFiltering","admin.defaultFiltering","filteringModeDetails"]), '
                                               'chrome.runtime.sendMessage({what:"getFilteringModeDetails"})])')
                     print('uBOL diagnostics:', diagnostics, flush=True)
+                    targets = await controller.list_targets()
+                    for target in targets:
+                        if target.get('type') != 'service_worker' or policy.EXTENSION_ID not in target.get('url', ''):
+                            continue
+                        async with ClientSession() as client:
+                            async with client.ws_connect(target['webSocketDebuggerUrl']) as websocket:
+                                worker = browser.ChromiumPageSession(websocket)
+                                result = await worker.call('Runtime.evaluate', {
+                                    'expression': 'Promise.all([chrome.storage.managed instanceof Object, '
+                                    'chrome.storage.managed.get(null), '
+                                    'import(chrome.runtime.getURL("js/ext.js")).then(ext => ext.adminRead("noFiltering"))])',
+                                    'awaitPromise': True, 'returnByValue': True})
+                                print('uBOL worker diagnostics:', result, flush=True)
                 except Exception:
                     pass
                 self.fail(f'Chrome policy check timed out: {expression}: {last}\n'
