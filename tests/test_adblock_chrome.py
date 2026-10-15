@@ -104,7 +104,8 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                     chrome = subprocess.Popen(['bash', '-c', script, 'test', str(root / 'profile')],
                                               env={**os.environ, 'DISPLAY': ':97', 'CHROMIUM_DEVTOOLS_PORT': '9224'},
                                               stdout=log, stderr=log)
-                    await wait_value('location.href', lambda url: url == 'chrome://extensions/')
+                    await wait_value('document.readyState', lambda state: state == 'complete')
+                    await navigate('chrome://extensions/')
                     info = await extension_info(mode != 'off' and iteration != 5)
                     if mode != 'off' and iteration != 5:
                         self.assertTrue(info['mayDisable'])

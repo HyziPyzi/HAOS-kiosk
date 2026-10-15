@@ -46,7 +46,7 @@ configuration:
     name: "Ad blocking"
     description: "Official uBlock Origin Lite via Chrome policy. Optimal is recommended; Complete adds broader cosmetic filtering. Off disables the extension. Restart the app after changes."
     items:
-      off: "Off"
+      "off": "Off"
       optimal: "Optimal"
       complete: "Complete"
   adblock_excluded_domains:
