@@ -30,8 +30,10 @@ jobs:
           path: ${{ runner.temp }}/launcher-screenshots/*.png
           if-no-files-found: ignore
       - name: Validate app with stable Supervisor
+        if: ${{ !cancelled() }}
         run: docker run --rm --entrypoint python3 -v "$PWD:/src:ro" ghcr.io/home-assistant/amd64-hassio-supervisor:2026.09.3 /src/tests/validate_supervisor.py
       - name: Documentation copies
+        if: ${{ !cancelled() }}
         run: |
           cmp README.md haoskiosk/README.md
           cmp README.md haoskiosk/DOCS.md

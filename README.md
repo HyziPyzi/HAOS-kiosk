@@ -50,6 +50,8 @@ debug_mode: false
 
 ## Blokowanie reklam — uBlock Origin Lite
 
+**Stan weryfikacji 2026-10-15:** instalacja oficjalnego uBOL 2026.1012.1545 w Google Chrome 155.0.8059.79 działa, a polityki są poprawnie widoczne przez `storage.managed`. Test wykrył jednak, że silnik uBOL nie stosuje zarządzanych wyjątków. Automatyczny wybór Complete również wymaga potwierdzenia; domyślny Optimal nie jest dowodem zastosowania polityki. Ta integracja pozostaje eksperymentalna, a pełny test nie przechodzi. Do czasu rozwiązania problemu wybierz tryb i wyjątki ręcznie w opcjach oficjalnego rozszerzenia albo użyj `adblock_mode: off`. Nie traktuj samego wpisu w `chrome://policy` jako potwierdzenia efektywnego filtrowania.
+
 Wersja **2.2.0** instaluje darmowe, oficjalne [uBlock Origin Lite (Manifest V3)](https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh), ID `ddkjiahejlhfcafbddmgiahcphecmpfh`. Chrome sam pobiera i aktualizuje rozszerzenie z Chrome Web Store. Nie pobieramy CRX skryptem, nie modyfikujemy rozszerzenia i nie dodajemy drugiej przeglądarki.
 
 W konfiguracji dodatku wybierz `adblock_mode`:
@@ -81,6 +83,8 @@ adblock_excluded_domains:
 Pierwsze osiem domen to lista domyślna. Wyjątki obejmują również ich subdomeny, np. `play.max.com` i `www.netflix.com`. Wpisuj same domeny ASCII/punycode, bez `https://`, ścieżek, portów, `*.` ani dyrektyw uBOL. Lista zastępuje domyślne wyjątki; `[]` usuwa wyjątki zarządzane przez dodatek. Ręczne wyjątki zapisane w uBOL mogą pozostać. Jeśli używasz Prime Video pod inną domeną regionalną Amazon, dodaj ją. Wyjątek `amazon.com` obejmuje także sklep Amazon. Strony logowania, osadzone odtwarzacze i oddzielne domeny usług mogą wymagać dodatkowych wyjątków. Najpewniejsza diagnostyka problemu VOD to chwilowe `off`.
 
 Polityka jest generowana przy każdym starcie **przed Chrome**, atomowo do `/etc/opt/chrome/policies/managed/haoskiosk-ublock-origin-lite.json` (root, tryb 0644). Zawiera tylko ustawienia tego rozszerzenia: `ExtensionSettings` z oficjalnym HTTPS update URL Google oraz `3rdparty.extensions.<ID>` z `defaultFiltering`, `noFiltering` i `disableFirstRunPage`. Nie blokujemy panelu ustawień uBOL. Pozostałe pliki polityk są zachowane; konfliktujące zasady administratora trzeba sprawdzić w `chrome://policy`. Opcje zapisuje Supervisor, a plik polityki jest odtwarzany także po aktualizacji kontenera. Profil `/config/chromium-profile`, logowania, Widevine, launcher, HDMI, GPU i pilot korzystają z dotychczasowych mechanizmów.
+
+Dodatkowo `ExtensionSettings.runtime_blocked_hosts` ogranicza uprawnienia rozszerzenia do modyfikowania wskazanych hostów bezpośrednio w Chrome. Lista może zawierać maksymalnie 100 unikalnych domen. Jest to dodatkowa ochrona; skuteczność pełnego wyjątku uBOL nadal sprawdzaj w jego panelu i odtwarzaczu.
 
 ### Sprawdzenie instalacji i restartu
 

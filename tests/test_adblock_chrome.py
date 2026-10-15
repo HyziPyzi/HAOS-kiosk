@@ -138,7 +138,8 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                     print(f'Installed uBOL: {info}; mode={mode}; iteration={iteration}', flush=True)
                     if mode != 'off' and iteration != 5:
                         self.assertTrue(info['mayDisable'])
-                        await check_filtering(options)
+                        with self.subTest(mode=mode, iteration=iteration):
+                            await check_filtering(options)
                         if iteration == 0:
                             await value('chrome.storage.local.set({kioskPolicyTest:"retained"})')
                         else:

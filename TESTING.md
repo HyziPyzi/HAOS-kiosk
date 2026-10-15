@@ -16,8 +16,24 @@ an unavailable store fails the test rather than substituting an unofficial CRX.
 The kiosk policy is restored/removed after this test; existing launcher, profile,
 EME, audio and REST regression tests run in the same container suite.
 
-Full container/CI results for 2.2.0 are recorded after the workflow completes.
-Local Docker Desktop is currently unavailable. Physical NUC HDMI/GPU/audio,
+Online integration currently FAILS: with official Chrome 155.0.8059.79 and
+unmodified Web Store uBOL 2026.1012.1545, the extension installs and may be
+disabled by the user. Both its dashboard and service worker can directly read the
+correct `storage.managed` values. However, uBOL caches `admin.noFiltering` and
+`admin.defaultFiltering` as empty objects and reports Optimal for excluded hosts.
+Native extension reload does not resolve this. Reproduction and diagnostics:
+[CI run](https://github.com/HyziPyzi/HAOS-kiosk/actions/runs/38691764084).
+The effective-filtering assertions remain strict and are not skipped or marked
+as expected failures. Subtests exercise subsequent restart/off/user-disable
+scenarios even if an earlier effective-mode assertion fails.
+
+Native `runtime_blocked_hosts` now also restricts extension access to excluded
+hosts (maximum 100 unique domains). This does not replace the failing checks for
+uBOL's own effective filtering state. The release remains experimental and must
+not be described as fully verified. Configure uBOL manually or use off while
+the managed-settings problem is unresolved.
+
+Local Docker Desktop is unavailable. Physical NUC HDMI/GPU/audio,
 remote input and authenticated DRM service playback still require hardware
 validation. No YouTube ad-removal claim is made.
 
