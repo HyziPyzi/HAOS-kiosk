@@ -224,7 +224,7 @@ class SmartTV:
     async def payload(self, request):
         if request.content_length is not None and request.content_length > 16384:
             raise web.HTTPRequestEntityTooLarge(max_size=16384, actual_size=request.content_length)
-        raw = await request.content.read(16385)
+        raw = await asyncio.wait_for(request.content.read(16385), timeout=5)
         if len(raw) > 16384:
             raise web.HTTPRequestEntityTooLarge(max_size=16384, actual_size=len(raw))
         value = json.loads(raw)
@@ -417,6 +417,14 @@ class SmartTV:
                 self.tv_only(request)
             merged = {**self.store.settings(), **patch}
             self.store.put("settings", merged)
+            if "shortcuts" in patch:
+                ids = {a["id"] for a in self.apps()}
+                profiles = self.store.profiles()
+                for profile in profiles:
+                    for key in ("favorites", "app_order"):
+                        profile[key] = [a for a in profile[key] if a in ids]
+                self.store.put("profiles", profiles)
+                self.store.put("recent", [a for a in self.store.get("recent", []) if a in ids])
             await self.changed()
         return web.json_response({"settings": self.store.settings()})
 
