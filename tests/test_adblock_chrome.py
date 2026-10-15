@@ -65,7 +65,7 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                                 result = await worker.call('Runtime.evaluate', {
                                     'expression': 'Promise.all([chrome.storage.managed instanceof Object, '
                                     'chrome.storage.managed.get(null), '
-                                    'import(chrome.runtime.getURL("js/ext.js")).then(ext => ext.adminRead("noFiltering"))])',
+                                    'chrome.storage.managed.get("noFiltering")])',
                                     'awaitPromise': True, 'returnByValue': True})
                                 print('uBOL worker diagnostics:', result, flush=True)
                 except Exception:
@@ -133,6 +133,8 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                     print(f'Installed uBOL: {info}; mode={mode}; iteration={iteration}', flush=True)
                     if mode != 'off' and iteration != 5:
                         self.assertTrue(info['mayDisable'])
+                        if iteration == 0:
+                            await value(f'chrome.developerPrivate.reload({extension_id}, {{failQuietly:true}})')
                         await check_filtering(options)
                         if iteration == 0:
                             await value('chrome.storage.local.set({kioskPolicyTest:"retained"})')
@@ -149,12 +151,16 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                     chrome = None
             finally:
                 if chrome is not None:
-                    chrome.terminate()
                     try:
+                        await controller.close()
                         await asyncio.to_thread(chrome.wait, 10)
-                    except subprocess.TimeoutExpired:
-                        chrome.kill()
-                        chrome.wait()
+                    except Exception:
+                        chrome.terminate()
+                        try:
+                            await asyncio.to_thread(chrome.wait, 10)
+                        except subprocess.TimeoutExpired:
+                            chrome.kill()
+                            chrome.wait()
                 xvfb.terminate()
                 xvfb.wait(timeout=10)
                 log.close()
