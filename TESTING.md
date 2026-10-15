@@ -1,5 +1,15 @@
 # uBlock Origin Lite 2.2.0 validation — 2026-10-15
 
+Full validation PASSED on commit `f3017c2` in
+[GitHub Actions](https://github.com/HyziPyzi/HAOS-kiosk/actions/runs/38693884265).
+All **18 tests** pass, including the eight-start online Chrome/uBOL scenario,
+explicit settings-panel fallback, exception removal, preserved extension data,
+kiosk off/on and user disablement across restart and another off/on cycle.
+The existing 1080p launcher, Openbox keyboard shortcut, REST security, profile
+cookies/local storage, audio selection and Widevine EME checks also pass.
+Docker build, Hadolint, ShellCheck, syntax, stable Supervisor schema and all
+three README/DOCS copies pass. No Chrome or CDM image is published.
+
 Five policy unit tests pass locally: defaults for upgraded installations, all
 three modes, hostname normalization/validation, empty/custom exceptions, atomic
 policy replacement, preservation of unrelated policies and invalid-input handling.
@@ -40,8 +50,8 @@ mode through uBOL's panel and asserts that the compatibility fallback restores i
 
 Native `runtime_blocked_hosts` now also restricts extension access to excluded
 hosts (maximum 100 unique domains). This does not replace the checks for uBOL's
-own effective filtering state. Compatibility fallback results are recorded after
-the full workflow completes. The panel-message interface may change in future
+own effective filtering state. The compatibility fallback passes in the linked
+workflow. The panel-message interface may change in future
 uBOL versions; a failure produces an explicit startup warning instead of claiming
 that settings were applied.
 
