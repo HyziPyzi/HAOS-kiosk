@@ -17,9 +17,11 @@ MARKER = 'haoskiosk-adblock-config'
 STATE_PATH = Path('/config/ubol-managed-state.json')
 
 
-def reconcile_exclusions(current, desired, previously_owned):
+def reconcile_exclusions(current, desired, previously_owned, manual=None):
+    if manual is None:
+        manual = [domain for domain in current if domain not in previously_owned]
     retained = [domain for domain in current if domain not in previously_owned or domain in desired]
-    owned = [domain for domain in previously_owned if domain in desired]
+    owned = [domain for domain in desired if domain not in manual]
     for domain in desired:
         if domain not in retained:
             retained.append(domain)
@@ -120,6 +122,9 @@ async def configure(policy_path=POLICY_PATH, state_path=STATE_PATH, port=9222):
                     await asyncio.sleep(1)
                     data = await message('getOptionsPageData')
                     modes = await message('getFilteringModeDetails')
+                    manual = await evaluate('chrome.storage.local.get("filteringModeDetails")'
+                                            '.then(data => data.filteringModeDetails?.none || [])')
+                    manual = [domain for domain in manual if domain not in previously_owned]
                     if not isinstance(data, dict) or not isinstance(modes, dict):
                         raise RuntimeError('Unsupported uBOL settings-panel response')
                     fallback = False
@@ -128,7 +133,7 @@ async def configure(policy_path=POLICY_PATH, state_path=STATE_PATH, port=9222):
                         modes = await message('getFilteringModeDetails')
                         fallback = True
                     exclusions, owned = reconcile_exclusions(
-                        modes['none'], expected['noFiltering'], previously_owned)
+                        modes['none'], expected['noFiltering'], previously_owned, manual)
                     if exclusions != modes['none']:
                         await message('setFilteringModeDetails', modes={**modes, 'none': exclusions})
                         fallback = True

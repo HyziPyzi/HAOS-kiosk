@@ -14,6 +14,8 @@ import ubol_config
 class ChromePolicyTests(unittest.TestCase):
     def test_owned_exclusions_do_not_remove_manual_exceptions(self):
         self.assertEqual(ubol_config.reconcile_exclusions(
+            ['netflix.com'], ['netflix.com'], [], manual=[]), (['netflix.com'], ['netflix.com']))
+        self.assertEqual(ubol_config.reconcile_exclusions(
             ['manual.example.org', 'netflix.com', 'old.example.org'],
             ['netflix.com', 'new.example.org'], ['netflix.com', 'old.example.org']),
             (['manual.example.org', 'netflix.com', 'new.example.org'], ['netflix.com', 'new.example.org']))
