@@ -43,7 +43,8 @@ Na TV, w ustawieniach Home Assistant wybierz:
 - encję weather; baza pokazuje warunki/temperaturę bez prognozy;
 - opcjonalną scenę, lampy, jasność, aplikację i głośność Wieczoru filmowego.
 
-Konfiguracja sceny/lamp musi wskazywać encje wybrane do sterowania. Uruchomienie
+Scena/lampy Wieczoru filmowego są wybierane na TV niezależnie od kafelków domu;
+nie udostępnia to automatycznie ich bezpośredniego sterowania na telefonie. Uruchomienie
 sceny/skryptu wykonuje jej własne działania HA — sprawdź jej zawartość przed wyborem.
 Nie hardcodujemy nazw pomieszczeń ani urządzeń. Nie obiecujemy HDMI ani regulacji
 głośności, jeśli flagi funkcji encji ich nie udostępniają.
