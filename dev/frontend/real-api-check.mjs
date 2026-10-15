@@ -17,7 +17,7 @@ const tv = await tvCtx.newPage();
 const phone = await phoneCtx.newPage();
 const errors = [];
 for (const [name, page] of [['tv', tv], ['phone', phone]]) page.on('pageerror', e => errors.push(`${name}: ${e.message}`));
-const shot = async (page, name) => { if (out) await page.screenshot({ path: `${out}/${name}.png` }); };
+const shot = async (page, name) => { if (!out) return; await page.bringToFront(); await page.waitForTimeout(250); await page.screenshot({ path: `${out}/${name}.png` }); };
 const step = async (name, fn) => { try { await fn(); console.log('PASS', name); } catch (error) { console.log('FAIL', name, '-', error.message.split('\n')[0]); process.exitCode = 1; } };
 
 await step('TV launcher loads v3 state over loopback', async () => {

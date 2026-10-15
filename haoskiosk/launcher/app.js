@@ -1093,5 +1093,5 @@
     connect();
   });
   // Test hook: lets E2E read the current UI model without touching internals.
-  window.__smartTv = { get state() { return S; }, get screen() { return ui.screen; }, get layers() { return layers.length; } };
+  window.__smartTv = { get state() { return S; }, get screen() { return ui.screen; }, get section() { return ui.section; }, get layers() { return layers.length; } };
 })();
