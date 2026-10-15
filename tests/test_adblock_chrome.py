@@ -55,6 +55,8 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                                               'chrome.storage.local.get(["admin.noFiltering","admin.defaultFiltering","filteringModeDetails"]), '
                                               'chrome.runtime.sendMessage({what:"getFilteringModeDetails"})])')
                     print('uBOL diagnostics:', diagnostics, flush=True)
+                    print('Installed admin reader:', await value('fetch(chrome.runtime.getURL("js/ext.js"))'
+                          '.then(response => response.text()).then(source => source.slice(source.indexOf("export async function adminRead")))'), flush=True)
                     targets = await controller.list_targets()
                     for target in targets:
                         if target.get('type') != 'service_worker' or policy.EXTENSION_ID not in target.get('url', ''):
@@ -65,7 +67,9 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                                 result = await worker.call('Runtime.evaluate', {
                                     'expression': 'Promise.all([chrome.storage.managed instanceof Object, '
                                     'chrome.storage.managed.get(null), '
-                                    'chrome.storage.managed.get("noFiltering")])',
+                                    'chrome.storage.managed.get("noFiltering"), '
+                                    '(async () => ({browserType:typeof self.browser,same:self.browser===self.chrome,'
+                                    'managed:self.browser ? await self.browser.storage.managed.get("noFiltering") : null}))()])',
                                     'awaitPromise': True, 'returnByValue': True})
                                 print('uBOL worker diagnostics:', result, flush=True)
                 except Exception:
