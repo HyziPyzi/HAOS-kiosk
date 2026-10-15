@@ -15,9 +15,10 @@ from pathlib import Path
 import re
 import secrets
 import ssl
+import socket
 import time
 import unicodedata
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, unquote
 
 from aiohttp import web, WSMsgType
 
@@ -74,12 +75,34 @@ def number(value, lower, upper):
     return not isinstance(value, bool) and isinstance(value, (int, float)) and math.isfinite(value) and lower <= value <= upper
 
 
-def valid_url(value):
+def valid_url(value, *, allow_internal=False):
     require(isinstance(value, str) and len(value) <= 2048 and not any(ord(c) < 33 for c in value), "Invalid URL")
     parts = urlsplit(value)
     require(parts.scheme in {"http", "https"} and parts.hostname and not parts.username and not parts.password, "Use an http(s) URL without credentials")
     # Accessing port validates malformed ports as well.
     require(parts.port is None or 1 <= parts.port <= 65535, "Invalid URL port")
+    if not allow_internal:
+        host = unquote(parts.hostname).encode("idna").decode("ascii").lower().rstrip(".")
+        require(not any(c in host for c in "\\/%"), "Invalid URL host")
+        require(host not in {"localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"}
+                and not host.endswith((".localhost", ".localhost.localdomain")), "Internal control address is not allowed")
+        address = None
+        try:
+            address = ipaddress.ip_address(host)
+        except ValueError:
+            try:
+                # Match browser IPv4 forms: 127.1, decimal, hexadecimal, octal.
+                address = ipaddress.IPv4Address(socket.inet_aton(host))
+            except (OSError, ValueError):
+                pass
+        if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+            address = address.ipv4_mapped
+        if address:
+            require(not (address.is_loopback or address.is_link_local or address.is_unspecified or address.is_multicast),
+                    "Internal control address is not allowed")
+        reserved = {int(os.getenv("REST_PORT", "8080")), int(os.getenv("CHROMIUM_DEVTOOLS_PORT", "9222")),
+                    int(os.getenv("SMART_TV_PORT", "8443"))}
+        require((parts.port or (443 if parts.scheme == "https" else 80)) not in reserved, "Control ports are reserved")
     return value
 
 
@@ -138,7 +161,7 @@ class SmartTV:
         self.browser = browser or ChromiumController()
         self.remote_origin = (remote_origin if remote_origin is not None else os.getenv("SMART_TV_ORIGIN", "")).rstrip("/")
         if self.remote_origin:
-            parsed = urlsplit(valid_url(self.remote_origin))
+            parsed = urlsplit(valid_url(self.remote_origin, allow_internal=True))
             require(parsed.scheme == "https" and parsed.path == "" and not parsed.query and not parsed.fragment, "remote origin must be https://hostname:port")
             # Remote listener is LAN-only in configuration; never trust forwarding headers.
         self.pin = None
@@ -239,7 +262,7 @@ class SmartTV:
         apps = [dict(a, icon=a["id"], kind="builtin") for a in APPS]
         destination = (os.getenv("HA_URL", "http://localhost:8123").rstrip("/") + "/" + os.getenv("HA_DASHBOARD", "").lstrip("/"))
         try:
-            apps[5]["url"] = valid_url(destination)
+            apps[5]["url"] = valid_url(destination, allow_internal=True)
         except ValueError:
             apps[5]["url"] = "http://localhost:8123/"
         apps += [dict(a, icon="shortcut", kind="shortcut") for a in self.store.settings()["shortcuts"]]
@@ -396,6 +419,7 @@ class SmartTV:
         return web.json_response({"profile": profile})
 
     async def profile_delete(self, request):
+        require(request.match_info["id"] != "default", "The default profile cannot be removed")
         profiles = [p for p in self.store.profiles() if p["id"] != request.match_info["id"]]
         require(profiles, "At least one profile must remain")
         self.store.put("profiles", profiles)
@@ -486,7 +510,7 @@ class SmartTV:
         else:
             app = next((a for a in self.apps() if a["id"] == app_id), None)
             require(app and app["url"], "Unknown app or URL required")
-            url = valid_url(app["url"])
+            url = valid_url(app["url"], allow_internal=app_id == "home_assistant")
         pid = data.get("profile_id", self.store.get("active_profile_id", "default"))
         require(pid in {p["id"] for p in self.store.profiles()}, "Unknown profile")
         operation = {"id": secrets.token_hex(10), "state": "running", "stage": "queued", "app_id": app_id, "error": None}

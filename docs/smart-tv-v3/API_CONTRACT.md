@@ -38,7 +38,7 @@ Responses below are direct JSON objects (no success/data wrapper).
 | POST `/tv` | `{action:"on"|"off"|"volume_up"|"volume_down"|"mute"|"source",source?,muted?}` | `{tv:…}` |
 | GET `/profiles` | authenticated | `{profiles:[profile],active_profile_id}` |
 | PUT `/profiles/{id}` | profile fields below (upsert) | `{profile}` |
-| DELETE `/profiles/{id}` | authenticated, at least one must remain | `{ok:true}` |
+| DELETE `/profiles/{id}` | authenticated; `default` cannot be deleted, at least one must remain | `{ok:true}` |
 | POST `/profiles/active` | `{profile_id}` | `{active_profile_id}` |
 | GET `/settings` | authenticated | `{settings}` (safe settings below) |
 | PATCH `/settings` | subset of safe settings | `{settings}`; HA entity allowlist only editable at TV |
@@ -71,6 +71,11 @@ phone snapshots NEVER include PIN. Successful pairing broadcasts
 `{type:"pairing",state:"completed",device:{id,name}}` to TV only.
 Built-in app IDs: netflix,max,prime,youtube,spotify,home_assistant,browser.
 App has `kind:"builtin"|"shortcut"`; browser.url=null (UI asks URL).
+User URLs/shortcuts reject literal loopback/unspecified/link-local addresses,
+localhost aliases, alternative IPv4 forms and reserved REST/CDP/remote ports.
+Only the built-in home_assistant tile may navigate the configured internal HA_URL.
+This guards direct control destinations; Chrome browsing is not a network sandbox
+and website redirects/DNS are still governed by Chrome and the trusted household.
 TV response also has optional volume_level (0..1), is_muted boolean.
 Home entity adds domain; safe attributes include brightness_pct, supported:["brightness"],
 unit,device_class,current_temperature,temperature,hvac_action as applicable.

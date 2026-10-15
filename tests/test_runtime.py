@@ -162,7 +162,7 @@ class ChromeTests(unittest.IsolatedAsyncioTestCase):
                         start = source.index('resolve_browser_binary()')
                         end = source.index('\nbrowser_process_running()', start)
                         script = 'BROWSER_ENGINE=chrome\nCHROMIUM_DEVTOOLS_PORT=9222\nCHROMIUM_PROFILE_DIR="$1"\n'
-                        script += source[start:end] + '\nresolve_browser_binary\nexec "$BROWSER" "${BROWSER_FLAGS[@]}" http://127.0.0.1:8765/\n'
+                        script += source[start:end] + '\nresolve_browser_binary\nexec "$BROWSER" "${BROWSER_FLAGS[@]}" --host-resolver-rules="MAP kiosk-fixture.test 127.0.0.1" --no-proxy-server http://127.0.0.1:8765/\n'
                         chrome = subprocess.Popen(['bash', '-c', script, 'test', str(profile)],
                                                   env={**os.environ, 'DISPLAY': ':99'}, stdout=clog, stderr=clog)
                     for _ in range(100):
@@ -216,7 +216,7 @@ class ChromeTests(unittest.IsolatedAsyncioTestCase):
                                 self.assertEqual(int(after['X']) - int(before['X']), 20)
                                 self.assertEqual(int(after['Y']) - int(before['Y']), 15)
                             async with session.post(origin + '/api/v3/apps/launch', headers={'Origin': origin},
-                                    json={'url': origin + '/next'}) as response:
+                                    json={'url': 'http://kiosk-fixture.test:8765/next'}) as response:
                                 self.assertEqual(response.status, 202, await response.text())
                             await smart.launch_task
                             self.assertEqual(smart.operation['state'], 'completed')

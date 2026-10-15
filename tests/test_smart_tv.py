@@ -261,9 +261,25 @@ class SmartTVTests(TLSFixture, unittest.IsolatedAsyncioTestCase):
             self.assertEqual(other.profiles()[-1]["preferences"]["accent"], "#aabbcc")
         finally:
             other.close()
+        self.assertEqual((await self.lpost("/profiles/default", {}, "DELETE")).status, 400)
         self.assertEqual((await self.lpost("/profiles/ania", {}, "DELETE")).status, 200)
         self.assertEqual(self.store.get("active_profile_id"), "default")
         self.assertEqual((await self.lpost("/profiles/default", {}, "DELETE")).status, 400)
+
+    async def test_internal_control_urls_refused_but_configured_ha_tile_works(self):
+        for url in ("http://127.0.0.1:9222/json", "http://localhost:8080/", "http://127.1/", "http://2130706433/",
+                    "http://0x7f000001/", "http://0177.0.0.1/", "http://[::ffff:127.0.0.1]/", "http://[::1]/",
+                    "http://0.0.0.0/", "http://169.254.169.254/", "http://localhost./", "http://a.localhost/",
+                    "http://%31%32%37.0.0.1/", "http://example.com:8080/"):
+            response = await self.lpost("/apps/launch", {"url": url})
+            self.assertEqual(response.status, 400, url)
+            response = await self.lpost("/settings", {"shortcuts": [{"id": "unsafe", "name": "Unsafe", "url": url}]}, "PATCH")
+            self.assertEqual(response.status, 400, url)
+        response = await self.lpost("/apps/launch", {"app_id": "home_assistant"})
+        self.assertEqual(response.status, 202)
+        await self.smart.launch_task
+        self.assertEqual(self.smart.operation["state"], "completed")
+        self.browser.navigate.assert_awaited_once()
 
     async def test_removed_shortcut_does_not_break_profile_edits(self):
         await self.settings(shortcuts=[{"id": "news", "name": "News", "url": "https://example.com/"}])
