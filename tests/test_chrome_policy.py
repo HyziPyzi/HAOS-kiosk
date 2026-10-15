@@ -31,7 +31,7 @@ class ChromePolicyTests(unittest.TestCase):
                                           [' Netflix.COM. ', 'netflix.com', 'vod.example.org']})
             extension = result['ExtensionSettings'][policy.EXTENSION_ID]
             managed = result['3rdparty']['extensions'][policy.EXTENSION_ID]
-            self.assertEqual(extension['installation_mode'], 'blocked' if mode == 'off' else 'normal_installed')
+            self.assertEqual(extension['installation_mode'], 'normal_installed')
             self.assertEqual(extension['runtime_blocked_hosts'], ['*://*.netflix.com', '*://*.vod.example.org'])
             self.assertEqual(managed, {'defaultFiltering': 'none' if mode == 'off' else mode,
                                       'noFiltering': ['netflix.com', 'vod.example.org'],

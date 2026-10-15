@@ -40,7 +40,7 @@ def build_policy(options):
     return {
         'ExtensionSettings': {
             EXTENSION_ID: {
-                'installation_mode': 'blocked' if mode == 'off' else 'normal_installed',
+                'installation_mode': 'normal_installed',
                 'update_url': UPDATE_URL,
                 'runtime_blocked_hosts': [f'*://*.{hostname}' for hostname in normalized],
             },

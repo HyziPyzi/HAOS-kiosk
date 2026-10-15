@@ -28,12 +28,12 @@ def reconcile_exclusions(current, desired, previously_owned):
     return retained, owned
 
 
-def save_state(path, owned):
+def save_state(path, owned, disabled_by_kiosk=False):
     path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent,
                                      prefix='.ubol-state-', delete=False) as output:
         temporary = Path(output.name)
-        json.dump({'owned_exclusions': owned}, output)
+        json.dump({'owned_exclusions': owned, 'disabled_by_kiosk': disabled_by_kiosk}, output)
     try:
         temporary.chmod(0o600)
         os.replace(temporary, path)
@@ -43,10 +43,8 @@ def save_state(path, owned):
 
 async def configure(policy_path=POLICY_PATH, state_path=STATE_PATH, port=9222):
     policy = json.loads(Path(policy_path).read_text())
-    if policy['ExtensionSettings'][EXTENSION_ID]['installation_mode'] == 'blocked':
-        return 'uBOL: disabled by Chrome policy'
     expected = policy['3rdparty']['extensions'][EXTENSION_ID]
-    desired_level = {'optimal': 2, 'complete': 3}[expected['defaultFiltering']]
+    desired_level = {'none': 0, 'optimal': 2, 'complete': 3}[expected['defaultFiltering']]
     state_path = Path(state_path)
     previous = json.loads(state_path.read_text()) if state_path.exists() else {}
     previously_owned = previous.get('owned_exclusions', [])
@@ -96,6 +94,16 @@ async def configure(policy_path=POLICY_PATH, state_path=STATE_PATH, port=9222):
                     extension_id = json.dumps(EXTENSION_ID)
                     info = await wait_value(f'chrome.management.get({extension_id})'
                                             '.then(info => ({enabled:info.enabled,version:info.version})).catch(() => null)')
+                    if desired_level == 0:
+                        if info['enabled']:
+                            await evaluate(f'chrome.management.setEnabled({extension_id}, false)')
+                        save_state(state_path, previously_owned,
+                                   disabled_by_kiosk=info['enabled'] or previous.get('disabled_by_kiosk', False))
+                        return 'uBOL: disabled by kiosk; extension data retained'
+                    if not info['enabled'] and previous.get('disabled_by_kiosk'):
+                        await evaluate(f'chrome.management.setEnabled({extension_id}, true)')
+                        info = await wait_value(f'chrome.management.get({extension_id})'
+                                                '.then(info => info.enabled ? {enabled:true} : null)')
                     if not info['enabled']:
                         return 'uBOL: extension is disabled; settings left unchanged'
                     await page.call('Page.navigate', {

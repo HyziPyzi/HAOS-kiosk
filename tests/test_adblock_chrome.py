@@ -114,17 +114,15 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                                               env={**os.environ, 'DISPLAY': ':97', 'CHROMIUM_DEVTOOLS_PORT': '9224'},
                                               stdout=log, stderr=log)
                     await wait_value('document.readyState', lambda state: state == 'complete')
+                    if iteration == 2:
+                        await navigate(f'chrome-extension://{policy.EXTENSION_ID}/dashboard.html')
+                        await wait_value('chrome.runtime.sendMessage({what:"setDefaultFilteringMode",level:2})', lambda level: level == 2)
                     original_target = (await controller.get_page_target())['id']
                     configured = await asyncio.wait_for(ubol_config.configure(
                         state_path=root / 'ubol-managed-state.json', port=9224), timeout=180)
                     print(configured, flush=True)
                     self.assertEqual((await controller.get_page_target())['id'], original_target)
                     await navigate('chrome://extensions/')
-                    if iteration == 4 and not (await extension_info(None))['enabled']:
-                        await value(f'chrome.management.setEnabled({extension_id}, true)')
-                        await extension_info(True)
-                        print(await asyncio.wait_for(ubol_config.configure(
-                            state_path=root / 'ubol-managed-state.json', port=9224), timeout=180), flush=True)
                     info = await extension_info(mode != 'off' and iteration != 5)
                     print(f'Installed uBOL: {info}; mode={mode}; iteration={iteration}', flush=True)
                     if mode != 'off' and iteration != 5:
