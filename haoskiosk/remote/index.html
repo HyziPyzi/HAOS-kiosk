@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0f1626">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Pilot TV">
+  <meta name="format-detection" content="telephone=no">
+  <title>Pilot TV</title>
+  <link rel="manifest" href="/remote/manifest.webmanifest">
+  <link rel="icon" href="/remote/icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/remote/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/remote/style.css">
+  <script src="/remote/app.js" defer></script>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="status" id="status-bar">
+      <button class="conn" id="conn" type="button" aria-live="polite"><i class="dot"></i><span id="conn-text">Łączenie…</span></button>
+      <button class="round power" id="power" type="button" aria-label="Włącz lub wyłącz telewizor" hidden></button>
+    </header>
+    <div class="banner" id="banner" role="alert" hidden></div>
+    <main class="views" id="views">
+      <section class="view" id="view-pair" aria-label="Parowanie" hidden></section>
+      <section class="view" id="view-remote" aria-label="Pilot" hidden></section>
+      <section class="view" id="view-home" aria-label="Dom" hidden></section>
+      <section class="view" id="view-voice" aria-label="Polecenia" hidden></section>
+      <section class="view" id="view-settings" aria-label="Ustawienia" hidden></section>
+    </main>
+    <nav class="tabs" id="tabs" aria-label="Sekcje" hidden></nav>
+  </div>
+  <div class="sheet-root" id="sheet-root"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <noscript><p style="padding:24px">Pilot wymaga JavaScriptu.</p></noscript>
+</body>
+</html>

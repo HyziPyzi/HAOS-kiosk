@@ -1,0 +1,15 @@
+{
+  "name": "smart-tv-frontend-dev",
+  "private": true,
+  "description": "Dev-only tooling for the Smart TV OS v3 launcher and remote: contract mock server and Playwright E2E. Never shipped in the add-on image.",
+  "type": "module",
+  "scripts": {
+    "mock": "node mock-server.mjs",
+    "test:e2e": "playwright test -c playwright.config.mjs",
+    "check": "node --check ../../haoskiosk/launcher/app.js && node --check ../../haoskiosk/remote/app.js && node --check ../../haoskiosk/remote/sw.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "ws": "8.18.3"
+  }
+}
