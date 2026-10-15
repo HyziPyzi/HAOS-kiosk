@@ -60,6 +60,8 @@ entities:[entity_ids],movie_scene:"scene.…"|"",movie_lights:[light_ids],
 movie_brightness:0..100,movie_app:"netflix",movie_volume:0..1|null,
 shortcuts:[{id,name,url}],assist_enabled:boolean}`.
 All HA identifiers are user-configured; phone sees selected entities only. No token.
+Movie entity selection is TV-only and independent of direct home-control entities;
+`/movie` may execute those configured movie entities without adding phone tiles.
 
 State snapshot: `{version:"3.0.0",apps:[],recent:[],profiles:[],active_profile_id,
 settings:{},tv:{…},home:{entities:[],weather:null},capabilities:{

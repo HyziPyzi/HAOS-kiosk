@@ -308,7 +308,7 @@ class SmartTVTests(TLSFixture, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.ha.calls, [])
 
     async def test_one_click_tv_power_source_movie_volume_then_chrome(self):
-        await self.settings(tv_entity="media_player.panasonic", tv_source="HDMI1", entities=["scene.movie", "light.living"],
+        await self.settings(tv_entity="media_player.panasonic", tv_source="HDMI1", entities=[],
                             movie_scene="scene.movie", movie_lights=["light.living"], movie_volume=.3)
         response = await self.lpost("/movie", {"app_id": "netflix"})
         self.assertEqual(response.status, 202)
@@ -319,6 +319,8 @@ class SmartTVTests(TLSFixture, unittest.IsolatedAsyncioTestCase):
         self.browser.navigate.assert_awaited_once_with("https://www.netflix.com/")
         self.assertIn(("scene.movie", "turn_on", None), self.ha.calls)
         self.assertIn(("light.living", "turn_on", 20), self.ha.calls)
+        self.assertEqual(self.store.settings()["entities"], [])
+        self.assertEqual((await self.lpost("/home/action", {"entity_id": "light.living", "action": "turn_on"})).status, 400)
 
     async def test_unsupported_hdmi_and_timeout_never_report_success(self):
         await self.settings(tv_entity="media_player.panasonic", tv_source="HDMI1")
@@ -334,6 +336,19 @@ class SmartTVTests(TLSFixture, unittest.IsolatedAsyncioTestCase):
         await self.smart.launch_task
         self.assertEqual(self.smart.operation["error"]["code"], "ha_unavailable")
         self.browser.navigate.assert_not_awaited()
+
+    async def test_playing_tv_is_ready_and_not_power_cycled(self):
+        await self.settings(tv_entity="media_player.panasonic")
+        original = self.ha.tv
+        async def playing(settings, **kwargs):
+            value = await original(settings, **kwargs)
+            value["state"] = "playing"
+            return value
+        self.ha.tv = playing
+        await self.lpost("/apps/launch", {"app_id": "youtube"})
+        await self.smart.launch_task
+        self.assertEqual(self.smart.operation["state"], "completed")
+        self.assertNotIn("on", [call[0] for call in self.ha.calls])
 
     async def test_ha_failure_snapshot_and_sanitized_entity_picker(self):
         await self.settings(tv_entity="media_player.panasonic")
@@ -429,6 +444,9 @@ class HomeAssistantHTTPTests(unittest.IsolatedAsyncioTestCase):
                 states["media_player.panasonic"]["attributes"]["supported_features"] = 128 | 256
                 with self.assertRaises(ValueError):
                     await ha.tv_action(settings, "source", source="HDMI1")
+                states["media_player.panasonic"]["attributes"].update(supported_features=4, volume_level=.5)
+                await ha.tv_action(settings, "volume_up")
+                self.assertEqual(calls[-1], ("/api/services/media_player/volume_set", {"entity_id": "media_player.panasonic", "volume_level": .55}))
                 with self.assertRaises(ValueError):
                     await ha.home_action(settings, "light.private", "turn_on")
                 await ha.home_action(settings, "light.living", "turn_on", 25)

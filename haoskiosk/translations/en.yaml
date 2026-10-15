@@ -138,6 +138,24 @@ configuration:
       Optional on localhost; required when listening outside localhost. [Default: ""]
       If set add the line `-H "Authorization: Bearer <REST_BEARER_TOKEN>"`
       to your REST API calls.
+  smart_tv_remote:
+    name: "Enable HTTPS phone remote"
+    description: "Off by default. Requires a trusted local TLS certificate and exact HTTPS origin. Never expose to the internet."
+  smart_tv_origin:
+    name: "Remote HTTPS origin"
+    description: "Exact address without path, for example https://192.168.1.50:8443. Must match certificate SAN and Safari address."
+  smart_tv_bind:
+    name: "Remote listening address"
+    description: "Prefer the NUC private LAN address. 0.0.0.0 listens on all IPv4 interfaces; restrict with your LAN firewall."
+  smart_tv_port:
+    name: "Remote HTTPS port"
+    description: "Default 8443. Separate from legacy REST and Home Assistant. No router port forwarding."
+  smart_tv_cert:
+    name: "TLS certificate path"
+    description: "PEM server certificate in the add-on private config directory. See docs/smart-tv-v3/HTTPS.md."
+  smart_tv_key:
+    name: "TLS private key path"
+    description: "PEM private key, permissions 0600. Never place in a public web directory; keep the root CA key offline."
   gestures:
     name: Gesture Command List
     description: |

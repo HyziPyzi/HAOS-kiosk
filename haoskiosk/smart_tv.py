@@ -523,10 +523,13 @@ class SmartTV:
                     await self.ha.tv_action(settings, "source", source=settings["tv_source"])
             if movie:
                 await self.stage(operation, "scene")
+                # TV-only movie selection is a separate capability: do not expose
+                # those entities as direct phone controls unless also selected there.
+                movie_settings = {**settings, "entities": settings["movie_lights"] + ([settings["movie_scene"]] if settings["movie_scene"] else [])}
                 if settings["movie_scene"]:
-                    await self.ha.home_action(settings, settings["movie_scene"], "turn_on")
+                    await self.ha.home_action(movie_settings, settings["movie_scene"], "turn_on")
                 for entity in settings["movie_lights"]:
-                    await self.ha.home_action(settings, entity, "turn_on", settings["movie_brightness"])
+                    await self.ha.home_action(movie_settings, entity, "turn_on", settings["movie_brightness"])
                 if settings["movie_volume"] is not None and settings["tv_entity"]:
                     tv = await self.ha.tv(settings, fresh=True)
                     require(tv.get("supported_features", 0) & 4, "TV volume setting unsupported")
