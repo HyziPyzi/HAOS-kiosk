@@ -47,6 +47,14 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                     except (OSError, RuntimeError, asyncio.TimeoutError) as error:
                         last = str(error)
                     await asyncio.sleep(0.25)
+                try:
+                    diagnostics = await value('Promise.all([chrome.runtime.getManifest().version, '
+                                              'chrome.storage.managed.get(null), '
+                                              'chrome.storage.local.get(["admin.noFiltering","admin.defaultFiltering","filteringModeDetails"]), '
+                                              'chrome.runtime.sendMessage({what:"getFilteringModeDetails"})])')
+                    print('uBOL diagnostics:', diagnostics, flush=True)
+                except Exception:
+                    pass
                 self.fail(f'Chrome policy check timed out: {expression}: {last}\n'
                           + (root / 'chrome.log').read_text()[-12000:])
 
@@ -107,6 +115,7 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                     await wait_value('document.readyState', lambda state: state == 'complete')
                     await navigate('chrome://extensions/')
                     info = await extension_info(mode != 'off' and iteration != 5)
+                    print(f'Installed uBOL: {info}; mode={mode}; iteration={iteration}', flush=True)
                     if mode != 'off' and iteration != 5:
                         self.assertTrue(info['mayDisable'])
                         await check_filtering(options)
