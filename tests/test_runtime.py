@@ -5,13 +5,16 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from aiohttp import web
+from aiohttp import web, ClientSession
 from aiohttp.test_utils import TestClient, TestServer, make_mocked_request
 
 import browser_ctl as browser
 import chromium_watchdog as watchdog
 import rest_server as rest
+from smart_tv import SmartTV
+from smart_tv_store import Store
 
 
 class ValidationTests(unittest.TestCase):
@@ -136,13 +139,17 @@ class ChromeTests(unittest.IsolatedAsyncioTestCase):
             xlog = open(Path(root) / 'xvfb.log', 'w')
             xvfb = subprocess.Popen(['Xvfb', ':99', '-screen', '0', '1280x720x24', '-nolisten', 'tcp'], stdout=xlog, stderr=xlog)
             chrome = None
-            runner = web.AppRunner(web.Application())
-            runner.app.router.add_get('/', lambda _: web.Response(text='<html><title>Kiosk test</title></html>', content_type='text/html'))
+            controller = browser.ChromiumController(port=9222)
+            smart = SmartTV(store=Store(Path(root) / 'smart.sqlite3'), browser=controller)
+            app = web.Application(middlewares=[smart.middleware])
+            smart.routes(app)
+            app.on_cleanup.append(smart.close)
+            runner = web.AppRunner(app)
+            runner.app.router.add_get('/', lambda _: web.Response(text='<html><title>Kiosk test</title><input id="typed"><script>window.keys=[];document.addEventListener("keydown", e=>window.keys.push(e.key));</script></html>', content_type='text/html'))
             runner.app.router.add_get('/next', lambda _: web.Response(text='<html><title>Next</title></html>', content_type='text/html'))
             await runner.setup()
             site = web.TCPSite(runner, '127.0.0.1', 8765)
             await site.start()
-            controller = browser.ChromiumController(port=9222)
             try:
                 for _ in range(40):
                     if Path('/tmp/.X11-unix/X99').exists():
@@ -182,6 +189,42 @@ class ChromeTests(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue(listeners)
                     self.assertTrue(all(addr in {'127.0.0.1:9222', '[::1]:9222'} for addr in listeners), listeners)
                     if iteration == 0:
+                        # Real remote protocol -> actual API -> actual CDP/X11,
+                        # using only this fixture's isolated Chrome/profile.
+                        origin = 'http://127.0.0.1:8765'
+                        await controller.evaluate('document.querySelector("#typed").focus()')
+                        async with ClientSession() as session:
+                            async with session.post(origin + '/api/v3/input', headers={'Origin': origin},
+                                    json={'type': 'text', 'text': 'Zażółć'}) as response:
+                                self.assertEqual(response.status, 200, await response.text())
+                            typed = await controller.evaluate('document.querySelector("#typed").value')
+                            self.assertEqual(watchdog.extract_evaluate_value(typed), 'Zażółć')
+                            async with session.ws_connect(origin + '/api/v3/ws', origin=origin) as ws:
+                                self.assertEqual((await ws.receive_json())['type'], 'state')
+                                await ws.send_json({'id': 'actual-key', 'type': 'input', 'input': {'type': 'key', 'key': 'up'}})
+                                self.assertEqual(await ws.receive_json(), {'type': 'ack', 'id': 'actual-key', 'ok': True})
+                            keys = await controller.evaluate('window.keys')
+                            self.assertIn('ArrowUp', watchdog.extract_evaluate_value(keys))
+                            with patch.dict(os.environ, {'DISPLAY': ':99'}):
+                                position = subprocess.check_output(['xdotool', 'getmouselocation', '--shell'], text=True)
+                                before = dict(line.split('=', 1) for line in position.splitlines())
+                                async with session.post(origin + '/api/v3/input', headers={'Origin': origin},
+                                        json={'type': 'pointer', 'dx': 20, 'dy': 15}) as response:
+                                    self.assertEqual(response.status, 200, await response.text())
+                                position = subprocess.check_output(['xdotool', 'getmouselocation', '--shell'], text=True)
+                                after = dict(line.split('=', 1) for line in position.splitlines())
+                                self.assertEqual(int(after['X']) - int(before['X']), 20)
+                                self.assertEqual(int(after['Y']) - int(before['Y']), 15)
+                            async with session.post(origin + '/api/v3/apps/launch', headers={'Origin': origin},
+                                    json={'url': origin + '/next'}) as response:
+                                self.assertEqual(response.status, 202, await response.text())
+                            await smart.launch_task
+                            self.assertEqual(smart.operation['state'], 'completed')
+                        await controller.navigate(origin + '/')
+                        for _ in range(100):
+                            if watchdog.extract_evaluate_value(await controller.evaluate('document.title === "Kiosk test"')):
+                                break
+                            await asyncio.sleep(.05)
                         written = await controller.evaluate("localStorage.setItem('kiosk-test','retained'); document.cookie='kiosk_test=retained; Max-Age=3600; path=/'; ({storage:localStorage.getItem('kiosk-test'),cookie:document.cookie})")
                         self.assertNotIn('exceptionDetails', written)
                         written_value = watchdog.extract_evaluate_value(written)
