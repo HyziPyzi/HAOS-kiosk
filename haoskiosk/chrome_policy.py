@@ -35,11 +35,14 @@ def build_policy(options):
             raise ValueError('adblock_excluded_domains requires bare hostnames, without URLs or wildcards')
         if hostname not in normalized:
             normalized.append(hostname)
+    if len(normalized) > 100:
+        raise ValueError('adblock_excluded_domains supports at most 100 unique domains')
     return {
         'ExtensionSettings': {
             EXTENSION_ID: {
                 'installation_mode': 'blocked' if mode == 'off' else 'normal_installed',
                 'update_url': UPDATE_URL,
+                'runtime_blocked_hosts': [f'*://*.{hostname}' for hostname in normalized],
             },
         },
         '3rdparty': {

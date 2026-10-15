@@ -25,11 +25,15 @@ class ChromePolicyTests(unittest.TestCase):
             extension = result['ExtensionSettings'][policy.EXTENSION_ID]
             managed = result['3rdparty']['extensions'][policy.EXTENSION_ID]
             self.assertEqual(extension['installation_mode'], 'blocked' if mode == 'off' else 'normal_installed')
+            self.assertEqual(extension['runtime_blocked_hosts'], ['*://*.netflix.com', '*://*.vod.example.org'])
             self.assertEqual(managed, {'defaultFiltering': 'none' if mode == 'off' else mode,
                                       'noFiltering': ['netflix.com', 'vod.example.org'],
                                       'disableFirstRunPage': True})
         result = policy.build_policy({'adblock_excluded_domains': []})
         self.assertEqual(result['3rdparty']['extensions'][policy.EXTENSION_ID]['noFiltering'], [])
+        self.assertEqual(result['ExtensionSettings'][policy.EXTENSION_ID]['runtime_blocked_hosts'], [])
+        with self.assertRaises(ValueError):
+            policy.build_policy({'adblock_excluded_domains': [f'site{number}.example.org' for number in range(101)]})
 
     def test_invalid_options_cannot_inject_ubol_directives(self):
         for mode in ('basic', '', None, False, [], {}):

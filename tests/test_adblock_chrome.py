@@ -69,6 +69,7 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                                     'chrome.storage.managed.get(null), '
                                     'chrome.storage.managed.get("noFiltering"), '
                                     '(async () => ({browserType:typeof self.browser,same:self.browser===self.chrome,'
+                                    'managedIsObject:self.browser?.storage?.managed instanceof Object,'
                                     'managed:self.browser ? await self.browser.storage.managed.get("noFiltering") : null}))()])',
                                     'awaitPromise': True, 'returnByValue': True})
                                 print('uBOL worker diagnostics:', result, flush=True)
@@ -137,8 +138,6 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                     print(f'Installed uBOL: {info}; mode={mode}; iteration={iteration}', flush=True)
                     if mode != 'off' and iteration != 5:
                         self.assertTrue(info['mayDisable'])
-                        if iteration == 0:
-                            await value(f'chrome.developerPrivate.reload({extension_id}, {{failQuietly:true}})')
                         await check_filtering(options)
                         if iteration == 0:
                             await value('chrome.storage.local.set({kioskPolicyTest:"retained"})')
