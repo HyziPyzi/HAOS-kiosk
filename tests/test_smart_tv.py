@@ -265,6 +265,18 @@ class SmartTVTests(TLSFixture, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.store.get("active_profile_id"), "default")
         self.assertEqual((await self.lpost("/profiles/default", {}, "DELETE")).status, 400)
 
+    async def test_removed_shortcut_does_not_break_profile_edits(self):
+        await self.settings(shortcuts=[{"id": "news", "name": "News", "url": "https://example.com/"}])
+        response = await self.lpost("/profiles/default", {"favorites": ["news"], "app_order": ["news", "netflix"]}, "PUT")
+        self.assertEqual(response.status, 200)
+        self.store.put("recent", ["news", "netflix"])
+        await self.settings(shortcuts=[])
+        profile = self.store.profiles()[0]
+        self.assertEqual(profile["favorites"], [])
+        self.assertEqual(profile["app_order"], ["netflix"])
+        self.assertEqual(self.store.get("recent"), ["netflix"])
+        self.assertEqual((await self.lpost("/profiles/default", {"name": "Dom po edycji"}, "PUT")).status, 200)
+
     async def test_input_allowlist_unicode_and_fixed_x_argv(self):
         for payload in ({"type": "key", "key": "up"}, {"type": "text", "text": "Zażółć gęślą jaźń"},
                         {"type": "pointer", "dx": -12, "dy": 30}, {"type": "click", "button": "right"},
