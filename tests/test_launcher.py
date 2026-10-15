@@ -5,6 +5,7 @@ independent navigation tests. No VOD accounts, physical HID or Bluetooth claims.
 """
 import asyncio
 import base64
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -55,6 +56,8 @@ class LauncherSecurityTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(response.status, 200, path)
                     self.assertIn("frame-ancestors 'none'", response.headers['Content-Security-Policy'])
                     self.assertNotIn('test-secret', await response.text())
+                font = await client.get('/launcher/fonts/manrope-latin.woff2')
+                self.assertEqual((font.status, font.content_type), (200, 'font/woff2'))
                 config = await (await client.get('/launcher/config')).json()
                 self.assertEqual(set(config), {'ha_url'})
                 self.assertEqual((await client.post('/launch_url', json={'url': 'https://www.netflix.com/'})).status, 401)
@@ -62,6 +65,8 @@ class LauncherSecurityTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((await client.get('/launcher', headers={'Host': 'evil.test'})).status, 403)
                 self.assertEqual((await client.get('/launcher', headers={'Origin': 'https://www.netflix.com'})).status, 403)
                 self.assertEqual((await client.get('/launcher/not-a-file')).status, 404)
+                for path in ('/launcher/../rest_server.py', '/launcher/%2e%2e/rest_server.py', '/launcher/fonts/../../run.sh', '/launcher/OFL.txt', '/launcher/deep/x/app.js'):
+                    self.assertEqual((await client.get(path)).status, 404, path)
                 with patch.object(rest, 'DEFAULT_LAUNCH_URL', 'http://user:password@localhost:8123/'):
                     self.assertEqual((await client.get('/launcher/config')).status, 400)
 
@@ -97,7 +102,10 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
             log = open(root / 'desktop.log', 'w')
             xvfb = subprocess.Popen(['Xvfb', ':98', '-screen', '0', '1920x1080x24', '-nolisten', 'tcp'], stdout=log, stderr=log)
             chrome = wm = None
-            app = await rest.create_app()
+            # Real v3 API and storage in a temp DB; only the CDP port differs from production.
+            with patch.dict(os.environ, {'SMART_TV_DB': str(root / 'smart-tv.sqlite3')}):
+                app = await rest.create_app()
+            app['smart_tv'].browser = browser.ChromiumController(port=9223)
             fixtures = web.Application()
             fixtures.router.add_get('/fixture/{name}', lambda r: web.Response(text='<html><title>' + r.match_info['name'] + '</title><script>document.addEventListener("keydown", e => { e.preventDefault(); e.stopImmediatePropagation(); }, true);</script><h1>Local navigation fixture</h1></html>', content_type='text/html'))
             fixture_runner = web.AppRunner(fixtures, access_log=None)
@@ -120,7 +128,7 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                     except Exception:
                         pass
                     await asyncio.sleep(0.05)
-                details = await value('({url:location.href,title:document.title,focus:document.activeElement.id || document.activeElement.dataset.app,dialog:document.querySelector("dialog")?.open,status:document.querySelector("#status")?.textContent})')
+                details = await value('({url:location.href,title:document.title,focus:document.activeElement.id || document.activeElement.dataset.key,layers:document.querySelectorAll(".layer").length,toast:document.querySelector("#toast")?.textContent})')
                 self.fail('Timed out: ' + expression + '; page=' + str(details))
             async def key(name):
                 codes = {'ArrowRight': 39, 'ArrowLeft': 37, 'ArrowUp': 38, 'ArrowDown': 40, 'Enter': 13, 'Backspace': 8, 'Escape': 27, 'BrowserBack': 166}
@@ -136,7 +144,7 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                 # document commits; otherwise the pending reload wins the race.
                 await value('window.__kiosk_test_old_document = true')
                 await controller.navigate(launcher_url)
-                await wait_for('!window.__kiosk_test_old_document && document.querySelectorAll(".tile").length === 6 && document.querySelector(".tile.selected") !== null')
+                await wait_for('!window.__kiosk_test_old_document && document.activeElement?.dataset?.key === "fav:netflix"')
             try:
                 for _ in range(60):
                     if Path('/tmp/.X11-unix/X98').exists(): break
@@ -157,53 +165,60 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                 script = 'BROWSER_ENGINE=chrome\nCHROMIUM_PROFILE_DIR="$1"\n' + source[start:end]
                 script += '\nresolve_browser_binary\nexec "$BROWSER" "${BROWSER_FLAGS[@]}" "$2"\n'
                 chrome = subprocess.Popen(['bash', '-c', script, 'test', str(root / 'profile'), launcher_url], env=env, stdout=log, stderr=log)
-                await wait_for('document.querySelector(".tile.selected")?.dataset.app === "netflix"')
+                await wait_for('document.activeElement?.dataset?.key === "fav:netflix"')
                 await wait_for('document.querySelector("#clock").textContent.length > 0')
-                geometry = await value('({w:innerWidth,h:innerHeight,scroll:document.documentElement.scrollHeight,tiles:[...document.querySelectorAll(".tile")].map(t=>({w:t.offsetWidth,h:t.offsetHeight}))})')
+                geometry = await value('({w:innerWidth,h:innerHeight,scrollW:document.documentElement.scrollWidth,scroll:document.documentElement.scrollHeight,tiles:[...document.querySelectorAll("[data-row=fav] .tile")].map(t=>({w:t.offsetWidth,h:t.offsetHeight}))})')
                 self.assertEqual(geometry['w'], 1920)
                 self.assertLessEqual(geometry['scroll'], geometry['h'])
-                self.assertTrue(all(t['w'] > 450 and t['h'] >= 190 for t in geometry['tiles']))
+                self.assertLessEqual(geometry['scrollW'], geometry['w'])
+                self.assertTrue(geometry['tiles'] and all(t['w'] >= 300 and t['h'] >= 180 for t in geometry['tiles']))
                 async def screenshot(page, _):
                     return await page.call('Page.captureScreenshot', {'format': 'png'})
                 shot = await controller._with_page(screenshot)
                 screenshot_dir = Path(os.getenv('LAUNCHER_SCREENSHOT_DIR', '/tmp'))
                 screenshot_dir.mkdir(parents=True, exist_ok=True)
                 (screenshot_dir / 'tv-launcher-1080.png').write_bytes(base64.b64decode(shot['data']))
-                self.assertEqual(await value('[...document.querySelectorAll(".tile[data-url]")].map(t=>t.dataset.url)'), ['https://www.netflix.com/', 'https://play.max.com/', 'https://www.primevideo.com/', 'https://www.youtube.com/'])
+                # Default favourites come from the real v3 store, in order.
+                self.assertEqual(await value('[...document.querySelectorAll("[data-row=fav] .tile")].map(t=>t.dataset.key)'), ['fav:netflix', 'fav:max', 'fav:prime', 'fav:youtube'])
+                focus = 'document.activeElement.dataset.key'
+                async def focus_key(name):
+                    return await value(f'(() => {{ document.querySelector(`[data-key="{name}"]`).focus(); return document.activeElement.dataset.key; }})()')
                 await key('ArrowLeft')
-                self.assertEqual(await value('document.activeElement.dataset.app'), 'netflix')
+                self.assertEqual(await value(focus), 'fav:netflix')
                 await key('ArrowRight')
-                self.assertEqual(await value('document.activeElement.dataset.app'), 'max')
+                self.assertEqual(await value(focus), 'fav:max')
                 await key('ArrowDown')
-                self.assertEqual(await value('document.activeElement.dataset.app'), 'ha')
-                await key('ArrowRight')
-                self.assertEqual(await value('document.activeElement.dataset.app'), 'browser')
-                await key('ArrowRight')
-                self.assertEqual(await value('document.activeElement.dataset.app'), 'browser')
+                self.assertTrue((await value(focus)).startswith('app:'))
+                await key('ArrowUp')
+                self.assertEqual(await value(focus), 'fav:max')  # rows remember their item
+                self.assertEqual(await focus_key('app:browser'), 'app:browser')
                 await key('Enter')
-                self.assertTrue(await value('document.querySelector("dialog").open'))
-                self.assertEqual(await value('document.activeElement.id'), 'url-input')
+                await wait_for('document.activeElement?.id === "url-input"')
                 await controller.evaluate('document.querySelector("#url-input").value="javascript:alert(1)"')
                 await key('Enter')
-                await wait_for('document.querySelector("#url-error").textContent.length > 0')
-                self.assertTrue(await value('document.querySelector("dialog").open'))
+                await wait_for('document.querySelector(".sheet .error")?.textContent.length > 0')
+                self.assertEqual(await value('document.querySelectorAll(".layer").length'), 1)
                 await controller.evaluate('document.querySelector("#url-input").value="abc"')
-                await key('Backspace')
-                self.assertTrue(await value('document.querySelector("dialog").open'))
-                await key('ArrowDown')
-                self.assertEqual(await value('document.activeElement.id'), 'url-cancel')
-                await key('Enter')
-                self.assertFalse(await value('document.querySelector("dialog").open'))
-                await key('Enter')
+                await key('Backspace')  # edits text, does not close the dialog
+                self.assertEqual(await value('document.querySelectorAll(".layer").length'), 1)
+                await key('Escape')  # leaves the text field, the dialog stays
+                self.assertEqual(await value('document.querySelectorAll(".layer").length'), 1)
                 await key('BrowserBack')
-                self.assertFalse(await value('document.querySelector("dialog").open'))
+                await wait_for('document.querySelectorAll(".layer").length === 0')
+                self.assertEqual(await value(focus), 'app:browser')
                 await key('Backspace')
-                self.assertEqual(await value('document.activeElement.dataset.app'), 'netflix')
-                # All four VOD tiles navigate in the same Chrome tab using local fixtures.
-                for app_name in ('netflix', 'max', 'prime', 'youtube'):
+                self.assertEqual(await value(focus), 'fav:netflix')
+                # One-click launch through the real v3 API and CDP, into local fixtures
+                # (user shortcuts) instead of real VOD services.
+                names = ('netflix', 'max', 'prime', 'youtube')
+                shortcuts = [{'id': f'fx{name}', 'name': name, 'url': f'http://127.0.0.1:8767/fixture/{name}'} for name in names]
+                body = json.dumps(json.dumps({'shortcuts': shortcuts}))
+                saved = await value('fetch("/api/v3/settings",{method:"PATCH",headers:{"Content-Type":"application/json"},body:' + body + '}).then(r=>r.status)')
+                self.assertEqual(saved, 200)
+                for app_name in names:
                     await return_home()
-                    active = await value(f'(() => {{ const tile=document.querySelector("[data-app={app_name}]"); tile.dataset.url="http://127.0.0.1:8767/fixture/{app_name}"; tile.focus(); return document.activeElement.dataset.app; }})()')
-                    self.assertEqual(active, app_name)
+                    await wait_for(f'!!document.querySelector(`[data-key="app:fx{app_name}"]`)')
+                    self.assertEqual(await focus_key(f'app:fx{app_name}'), f'app:fx{app_name}')
                     await key('Enter')
                     await wait_for(f'document.title === "{app_name}"')
                     self.assertEqual((await controller.get_page_target())['url'], f'http://127.0.0.1:8767/fixture/{app_name}')
@@ -214,18 +229,15 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                 # A real remote/key press has a dwell time. Avoid racing the WM
                 # grab with a near-instant sequence of injected X11 modifiers.
                 subprocess.run(['xdotool', 'key', '--delay', '100', '--clearmodifiers', 'ctrl+alt+h'], env=env, check=True)
-                await wait_for('document.title === "TV Home · HAOS Kiosk"')
+                await wait_for('document.title === "Smart TV · Ekran główny"')
                 self.assertEqual((await controller.get_page_target())['url'], launcher_url)
-                self.assertEqual(await value('document.activeElement.dataset.app'), 'youtube')
-                # The HA tile uses the configured dashboard, not the launcher start page.
-                with patch.object(rest, 'DEFAULT_LAUNCH_URL', 'http://127.0.0.1:8767/fixture/home-assistant'):
-                    await return_home()
-                    await asyncio.sleep(0.1)
-                    await controller.evaluate('document.querySelector("[data-app=ha]").focus()')
-                    await key('Enter')
-                    await wait_for('document.title === "home-assistant"')
-                await return_home()
-                await controller.evaluate('document.querySelector("[data-app=browser]").click()')
+                await wait_for('document.activeElement?.dataset?.key === "fav:netflix"')
+                # Launches above were recorded as recent apps by the backend.
+                await wait_for('!!document.querySelector("[data-row=recent] .tile")')
+                # The browser dialog opens an address through the same API.
+                self.assertEqual(await focus_key('app:browser'), 'app:browser')
+                await key('Enter')
+                await wait_for('document.activeElement?.id === "url-input"')
                 await controller.evaluate('document.querySelector("#url-input").value="http://127.0.0.1:8767/fixture/www"')
                 await key('Enter')
                 await wait_for('document.title === "www"')

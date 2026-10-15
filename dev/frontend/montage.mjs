@@ -1,3 +1,4 @@
+// Side-by-side phone screenshots for review: node montage.mjs <dir> <out-name> <shot> [shot...]
 import { chromium } from '@playwright/test';
 import fs from 'node:fs';
 const [dir, outName, ...names] = process.argv.slice(2);
