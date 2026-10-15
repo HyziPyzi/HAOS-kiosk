@@ -30,9 +30,13 @@ exceptions when necessary. It does not modify the signed extension, enable a
 disabled extension, erase manual exceptions or navigate the user's current tab.
 Its temporary background target is excluded from normal kiosk/CDP commands.
 The assertions are not skipped or marked as expected failures. Subtests exercise
-subsequent restart/off/user-disable scenarios; if Chrome keeps the extension
-disabled after off/on, the test simulates the user's manual re-enable before
-verifying the requested settings again.
+eight browser starts, including restart/off/on and user-disable scenarios.
+The production verifier disables off through Chrome's extension manager and
+records whether the kiosk caused disablement. It only re-enables that case when
+the configured mode changes back. A user-disabled extension remains disabled,
+including across an additional off/on cycle. Installation stays normal_installed
+and extension data survives. The test also deliberately changes the effective
+mode through uBOL's panel and asserts that the compatibility fallback restores it.
 
 Native `runtime_blocked_hosts` now also restricts extension access to excluded
 hosts (maximum 100 unique domains). This does not replace the checks for uBOL's

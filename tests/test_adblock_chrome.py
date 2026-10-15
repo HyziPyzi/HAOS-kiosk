@@ -103,7 +103,7 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                 end = source.index('\nbrowser_process_running()', start)
                 script = 'BROWSER_ENGINE=chrome\nCHROMIUM_PROFILE_DIR="$1"\n'
                 script += source[start:end] + '\nresolve_browser_binary\nexec "$BROWSER" "${BROWSER_FLAGS[@]}" chrome://extensions/\n'
-                for iteration, mode in enumerate(('optimal', 'optimal', 'complete', 'off', 'optimal', 'optimal')):
+                for iteration, mode in enumerate(('optimal', 'optimal', 'complete', 'off', 'optimal', 'optimal', 'off', 'optimal')):
                     options = {'adblock_mode': mode}
                     if mode != 'off':
                         options['adblock_excluded_domains'] = [*policy.DEFAULT_EXCLUDED_DOMAINS, 'vod.example.org']
@@ -116,16 +116,20 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                     await wait_value('document.readyState', lambda state: state == 'complete')
                     if iteration == 2:
                         await navigate(f'chrome-extension://{policy.EXTENSION_ID}/dashboard.html')
+                        await wait_value('chrome.runtime.sendMessage({what:"getDefaultFilteringMode"})', lambda level: level == 3)
                         await wait_value('chrome.runtime.sendMessage({what:"setDefaultFilteringMode",level:2})', lambda level: level == 2)
                     original_target = (await controller.get_page_target())['id']
                     configured = await asyncio.wait_for(ubol_config.configure(
                         state_path=root / 'ubol-managed-state.json', port=9224), timeout=180)
                     print(configured, flush=True)
+                    if iteration == 2:
+                        self.assertIn('settings-panel fallback', configured)
                     self.assertEqual((await controller.get_page_target())['id'], original_target)
                     await navigate('chrome://extensions/')
-                    info = await extension_info(mode != 'off' and iteration != 5)
+                    active = mode != 'off' and iteration < 5
+                    info = await extension_info(active)
                     print(f'Installed uBOL: {info}; mode={mode}; iteration={iteration}', flush=True)
-                    if mode != 'off' and iteration != 5:
+                    if active:
                         self.assertTrue(info['mayDisable'])
                         with self.subTest(mode=mode, iteration=iteration):
                             await check_filtering(options)

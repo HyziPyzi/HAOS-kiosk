@@ -103,7 +103,7 @@ async def configure(policy_path=POLICY_PATH, state_path=STATE_PATH, port=9222):
                     if not info['enabled'] and previous.get('disabled_by_kiosk'):
                         await evaluate(f'chrome.management.setEnabled({extension_id}, true)')
                         info = await wait_value(f'chrome.management.get({extension_id})'
-                                                '.then(info => info.enabled ? {enabled:true} : null)')
+                                                '.then(info => info.enabled ? {enabled:true,version:info.version} : null)')
                     if not info['enabled']:
                         return 'uBOL: extension is disabled; settings left unchanged'
                     await page.call('Page.navigate', {

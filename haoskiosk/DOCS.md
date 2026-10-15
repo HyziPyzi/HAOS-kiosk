@@ -58,11 +58,11 @@ W konfiguracji dodatku wybierz `adblock_mode`:
 
 | Wartość | Działanie |
 | --- | --- |
-| `off` | Całe rozszerzenie jest wyłączone zasadą Chrome `blocked`; pozostaje w profilu wraz z danymi. Przy pierwszym starcie w tym trybie nie jest instalowane. |
+| `off` | Weryfikator wyłącza całe rozszerzenie przez mechanizm menedżera rozszerzeń Chrome. Instalacja i dane pozostają w profilu. |
 | `optimal` | Domyślne Optimal uBOL: filtrowanie sieciowe i kosmetyczne zgodnie z tym trybem. |
 | `complete` | Complete uBOL: szersze filtrowanie kosmetyczne; może częściej wymagać wyjątków dla stron. |
 
-Dla Optimal i Complete używamy `ExtensionSettings → installation_mode: normal_installed`, więc możesz ręcznie wyłączyć rozszerzenie w `chrome://extensions`. Wyłączenie użytkownika pozostaje po restarcie Chrome. Aby je ponownie uruchomić, włącz je tam ręcznie. Po zmianie opcji dodatku zapisz konfigurację i **uruchom dodatek ponownie**. Powrót z `off` ustawia ponownie `normal_installed`; jeśli wcześniej sam wyłączyłeś rozszerzenie, sprawdź jego przełącznik.
+We wszystkich trybach używamy `ExtensionSettings → installation_mode: normal_installed`, więc możesz ręcznie wyłączyć rozszerzenie w `chrome://extensions`. Wyłączenie użytkownika pozostaje po restarcie Chrome, także po zmianie konfiguracji na `off` i z powrotem. Aby je ponownie uruchomić, włącz je tam ręcznie. Po zmianie opcji dodatku zapisz konfigurację i **uruchom dodatek ponownie**. Powrót z `off` włącza rozszerzenie automatycznie tylko wtedy, gdy wyłączył je sam dodatek. Nie stosujemy `blocked`, ponieważ Chrome usuwał tak zarządzaną instalację w testach.
 
 `adblock_excluded_domains` to edytowalna lista hostów bez filtrowania, np.:
 
