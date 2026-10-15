@@ -38,6 +38,7 @@ test('pairing with the TV PIN opens the remote and the TV lists this phone', asy
   await expect(page.locator('.app-chip').first()).toBeVisible();
   const devices = (await tvApi('/devices')).data.devices;
   expect(devices.map(d => d.name)).toEqual(['iPhone testowy']);
+  await expect(page.locator('.toast.show')).toHaveCount(0, { timeout: 5000 });
   await shot(page, 'remote-iphone');
 });
 
@@ -46,9 +47,11 @@ test('touchpad: drag moves, tap clicks, hold right-clicks, edge drag scrolls', a
   const pad = await page.locator('.pad').boundingBox();
   const cx = pad.x + pad.width / 2, cy = pad.y + pad.height / 2;
   await page.mouse.move(cx - 60, cy);
+  const t0 = Date.now();
   await page.mouse.down();
   for (let i = 1; i <= 10; i++) { await page.mouse.move(cx - 60 + i * 12, cy + i * 3); await page.waitForTimeout(16); }
   await page.mouse.up();
+  const dragMs = Date.now() - t0;
   await expect.poll(async () => sum(await inputs(), 'pointer', 'dx')).toBeGreaterThan(80);
   expect(sum(await inputs(), 'pointer', 'dy')).toBeGreaterThan(10);
   expect((await inputs()).filter(i => i.type === 'click')).toEqual([]);
@@ -64,8 +67,10 @@ test('touchpad: drag moves, tap clicks, hold right-clicks, edge drag scrolls', a
   for (let i = 1; i <= 8; i++) { await page.mouse.move(ex, cy - 40 + i * 12); await page.waitForTimeout(16); }
   await page.mouse.up();
   await expect.poll(async () => sum(await inputs(), 'scroll', 'dy')).toBeLessThan(-40); // natural scrolling
-  // Coalescing: ten move events in ~160 ms must not become ten messages each.
-  expect((await inputs()).filter(i => i.type === 'pointer').length).toBeLessThanOrEqual(8);
+  // Coalescing: at most one pointer message per 33 ms of gesture (30 Hz) plus the final flush,
+  // measured against the real gesture duration so slow CI machines are judged fairly.
+  const pointerMessages = (await inputs()).filter(i => i.type === 'pointer').length;
+  expect(pointerMessages).toBeLessThanOrEqual(Math.ceil(dragMs / 33) + 1);
 });
 
 test('D-pad and control keys send only the contract key names', async ({ page }) => {

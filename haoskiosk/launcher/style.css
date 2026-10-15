@@ -115,7 +115,7 @@ html[data-motion="off"] [data-scroll], html[data-motion="off"] .row-track { scro
 .tile .mark { font-weight: 800; font-size: 46px; letter-spacing: -1px; display: flex; align-items: center; gap: 12px; }
 .tile .mark svg.i { width: 54px; height: 54px; stroke-width: 1.7; }
 .tile .label { position: absolute; left: 0; right: 0; bottom: -46px; text-align: center; font-size: 22px; color: var(--text); opacity: 0; transition: opacity var(--t-fast), transform var(--t-fast); }
-.row-track.labels { padding-bottom: 62px; margin-bottom: -62px; }
+.row-track.labels { padding-bottom: 62px; margin-bottom: -26px; } /* room for the focused label */
 .tile.sm { width: 240px; height: 136px; }
 .tile.sm .mark { font-size: 34px; }
 .tile.sm .mark svg.i { width: 40px; height: 40px; }

@@ -190,6 +190,8 @@
       connGen++;
       ws = null; clearInterval(pingTimer); pending.clear();
       if (event.code === 4401 || event.code === 4403) { onUnauthorized(); return; }
+      // Policy close (revoked, too slow): re-check the session right away instead of backing off.
+      if (event.code === 1008) { api('/session').then(() => scheduleReconnect(), error => { if (error.status !== 401) scheduleReconnect(); }); return; }
       scheduleReconnect();
     };
   }
@@ -522,7 +524,7 @@
 
   // Keyboard: whatever is typed (or dictated) goes to the focused field on the TV.
   function openKeyboard() {
-    const input = h('input', { class: 'kbd-input', type: 'text', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'none', spellcheck: 'false', enterkeyhint: 'go', placeholder: 'Pisz tutaj — tekst pojawi się na TV' });
+    const input = h('input', { class: 'kbd-input', type: 'text', maxlength: '500', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'none', spellcheck: 'false', enterkeyhint: 'go', placeholder: 'Pisz tutaj — tekst pojawi się na TV' });
     // Mirror edits to the TV as a paced queue (≤20 ops/s, well under the server
     // limit). Deletions are counted in graphemes, so "ą", "ś" or emoji are one
     // Backspace each; consecutive text is merged into a single insertText.

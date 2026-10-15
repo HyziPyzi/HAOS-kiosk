@@ -906,7 +906,7 @@
   ];
   function renderSettings() {
     const nav = h('nav', { class: 'side-nav', 'aria-label': 'Sekcje ustawień' }, SECTIONS.map(([id, ic, label]) => {
-      const b = h('button', { class: `list-item ${id === ui.section ? 'is-current' : ''}`, nav: `set:${id}`, onclick: () => { const first = navigables($('settings-panel'))[0]; if (first) focusEl(first); } }, icon(ic), label);
+      const b = h('button', { class: `list-item ${id === ui.section ? 'is-current' : ''}`, nav: `set:${id}`, onclick: () => { if (ui.section !== id) { ui.section = id; renderSettingsPanel(); } const first = navigables($('settings-panel'))[0]; if (first) focusEl(first); } }, icon(ic), label);
       b.dataset.section = id;
       return b;
     }));
