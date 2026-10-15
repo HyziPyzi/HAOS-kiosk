@@ -1,0 +1,40 @@
+// Phone remote screenshots against the mock: node shot-remote.mjs <out-dir>
+// Pairs like a user would: TV starts pairing, the phone types the PIN.
+import { chromium, devices } from '@playwright/test';
+
+const out = process.argv[2] || 'shots';
+const base = process.argv[3] || 'http://localhost:8099';
+const tv = base.replace('localhost', '127.0.0.1');
+const browser = await chromium.launch({ channel: process.env.PW_CHANNEL || 'chrome' });
+const ctx = await browser.newContext({ ...devices['iPhone 14'], ignoreHTTPSErrors: true });
+const page = await ctx.newPage();
+page.on('pageerror', e => console.log('pageerror:', e.message));
+page.on('console', m => { if (m.type() === 'error') console.log('console:', m.text()); });
+const snap = async name => { await page.waitForTimeout(400); await page.screenshot({ path: `${out}/${name}.png` }); console.log('saved', name); };
+await fetch(`${tv}/__mock/reset`);
+await page.goto(`${base}/remote/`);
+await snap('r01-pair');
+const pin = await (await fetch(`${tv}/api/v3/pairing/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
+await page.locator('.pin-boxes input').fill(pin.pin);
+await snap('r02-pin');
+await page.getByRole('button', { name: 'Połącz z telewizorem' }).click();
+await page.waitForTimeout(800);
+await snap('r03-remote');
+await page.getByRole('tab', { name: 'Strzałki' }).click();
+await snap('r04-dpad');
+await page.getByRole('button', { name: 'Otwórz Netflix' }).click();
+await page.waitForTimeout(700);
+await snap('r05-launch');
+await page.waitForTimeout(2500);
+await page.locator('.tab', { hasText: 'Dom' }).click();
+await snap('r06-home');
+await page.locator('.tab', { hasText: 'Polecenia' }).click();
+await snap('r07-voice');
+await page.locator('.tab', { hasText: 'Ustawienia' }).click();
+await snap('r08-settings');
+await page.locator('.tab', { hasText: 'Pilot' }).click();
+await page.getByRole('tab', { name: 'Touchpad' }).click();
+await fetch(`${tv}/__mock/kick`);
+await page.waitForTimeout(300);
+await snap('r09-offline');
+await browser.close();
