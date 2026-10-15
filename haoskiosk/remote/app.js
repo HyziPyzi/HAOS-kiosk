@@ -52,6 +52,31 @@
   const STAGE_STEP = { queued: 0, powering_on: 1, waiting_tv: 1, selecting_source: 1, scene: 1, launching: 2, completed: 3 };
   const EXAMPLES = ['Otwórz Netflix', 'Otwórz YouTube', 'Pauza', 'Zwiększ głośność', 'Wróć do menu', 'Włącz tryb filmowy', 'Wyłącz światło', 'Wyłącz telewizor'];
 
+  // Backend messages stay English for diagnostics; people see Polish by error code.
+  const ERRORS = {
+    unauthorized: 'Sparuj ten telefon z telewizorem.',
+    forbidden: 'Brak dostępu. Otwórz pilota pod adresem pokazanym na telewizorze.',
+    origin: 'Żądanie odrzucone ze względów bezpieczeństwa. Odśwież stronę.',
+    private_lan: 'Pilot działa tylko w domowej sieci Wi-Fi.',
+    content_type: 'Nieprawidłowe żądanie. Odśwież stronę.',
+    rate_limited: 'Za dużo prób. Spróbuj ponownie za chwilę.',
+    busy: 'Trwa już uruchamianie innej aplikacji.',
+    tv_only: 'Tę czynność wykonasz na telewizorze.',
+    https_required: 'Otwórz pilota przez bezpieczny adres HTTPS.',
+    invalid_pin: 'Nieprawidłowy albo wygasły kod. Sprawdź kod na telewizorze.',
+    pairing_inactive: 'Na telewizorze nie ma aktywnego kodu. Wybierz tam „Sparuj telefon”.',
+    connection_limit: 'Za dużo otwartych pilotów. Zamknij pilota na innym urządzeniu.',
+    unknown_command: 'Nie rozumiem tego polecenia.',
+    invalid_request: 'Tego nie da się zrobić przy obecnych ustawieniach.',
+    invalid_input: 'Telewizor odrzucił to polecenie.',
+    http_error: 'Telewizor odrzucił żądanie.',
+    unavailable: 'Sterowanie jest chwilowo niedostępne. Sprawdź, czy Chrome działa.',
+    ha_unavailable: 'Home Assistant nie odpowiada.',
+    launch_failed: 'Nie udało się uruchomić aplikacji. Sprawdź telewizor i Chrome.',
+    cancelled: 'Uruchamianie zostało przerwane.',
+  };
+  const errorText = (error, status) => ERRORS[error?.code] || (error?.code ? `Nie udało się (kod: ${error.code}).` : `Nie udało się (błąd ${status || 'sieci'}).`);
+
   // ---------------------------------------------------------------- helpers
   function h(tag, props, ...kids) {
     const el = document.createElement(tag);
@@ -92,7 +117,7 @@
     let data = null;
     try { data = await response.json(); } catch (_) { /* empty */ }
     if (!response.ok) {
-      const error = new Error(data?.error?.message || `Błąd ${response.status}`);
+      const error = new Error(errorText(data?.error, response.status));
       error.status = response.status; error.code = data?.error?.code; error.retryAfter = data?.error?.retry_after ?? (Number(response.headers.get('Retry-After')) || null);
       if (response.status === 401 && path !== '/pairing/complete') onUnauthorized();
       throw error;
@@ -121,6 +146,7 @@
   }
 
   // ---------------------------------------------------------------- connection
+  let connGen = 0; // bumps on every open/close so queued edits never outlive a socket
   let ws = null, wsDelay = 1000, wsTimer = null, refreshTimer = null, pingTimer = null, msgId = 0;
   const pending = new Map();
   function setConn(next, detail) {
@@ -143,6 +169,7 @@
     catch (_) { scheduleReconnect(); return; }
     ws = socket;
     socket.onopen = () => {
+      connGen++;
       wsDelay = 1000;
       setConn('online');
       clearInterval(pingTimer);
@@ -155,11 +182,12 @@
       else if (msg.type === 'operation') onOperation(msg.operation);
       else if (msg.type === 'ack' || msg.type === 'error') {
         pending.delete(msg.id);
-        if (msg.type === 'error' && msg.error?.code !== 'rate_limited') toast(msg.error?.message || 'Telewizor odrzucił polecenie', true);
+        if (msg.type === 'error' && msg.error?.code !== 'rate_limited') toast(errorText(msg.error), true);
       }
     };
     socket.onclose = event => {
       if (ws !== socket) return;
+      connGen++;
       ws = null; clearInterval(pingTimer); pending.clear();
       if (event.code === 4401 || event.code === 4403) { onUnauthorized(); return; }
       scheduleReconnect();
@@ -181,7 +209,15 @@
     catch (error) { if (error.status !== 401) scheduleReconnect(); }
   }
   function sendRaw(msg) { if (ws?.readyState === 1) { ws.send(JSON.stringify(msg)); return true; } return false; }
+  const MAX_PENDING = 64;
   function sendInput(input, { fallback = true } = {}) {
+    if (ws?.readyState === 1 && pending.size >= MAX_PENDING) {
+      // The TV stopped acknowledging: drop this input (never queue or replay it)
+      // and restart the socket if the oldest ack is clearly stuck.
+      const oldest = pending.values().next().value;
+      if (Date.now() - oldest > 4000) { const stale = ws; stale.close(4000, 'ack timeout'); }
+      return;
+    }
     const id = `i${++msgId}`;
     if (sendRaw({ id, type: 'input', input })) { pending.set(id, Date.now()); return; }
     // HTTP fallback for discrete commands only; pointer streams are dropped while offline.
@@ -192,6 +228,7 @@
   }
   function onUnauthorized() {
     session = null;
+    connGen++;
     if (ws) { const s = ws; ws = null; s.close(); }
     clearTimeout(wsTimer); clearInterval(pingTimer);
     showPair();
@@ -238,12 +275,14 @@
     else if (!$('view-pair').hidden) return;
     else showView(ui.tab || 'remote');
   }
+  // Live state updates must never wipe what the user is typing or dragging.
+  const busy = name => { const a = document.activeElement; return !!a && a.tagName === 'INPUT' && $(`view-${name}`).contains(a); };
   function render() {
     renderPower();
     if (ui.tab === 'remote' && !$('view-remote').hidden) renderRemote();
-    if (ui.tab === 'home' && !$('view-home').hidden) renderHome();
+    if (ui.tab === 'home' && !$('view-home').hidden && !busy('home')) renderHome();
     if (ui.tab === 'voice' && !$('view-voice').hidden) renderVoice();
-    if (ui.tab === 'settings' && !$('view-settings').hidden) renderSettings();
+    if (ui.tab === 'settings' && !$('view-settings').hidden && !busy('settings')) renderSettings();
   }
   function renderPower() {
     const btn = $('power');
@@ -484,28 +523,56 @@
   // Keyboard: whatever is typed (or dictated) goes to the focused field on the TV.
   function openKeyboard() {
     const input = h('input', { class: 'kbd-input', type: 'text', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'none', spellcheck: 'false', enterkeyhint: 'go', placeholder: 'Pisz tutaj — tekst pojawi się na TV' });
-    let last = '';
+    // Mirror edits to the TV as a paced queue (≤20 ops/s, well under the server
+    // limit). Deletions are counted in graphemes, so "ą", "ś" or emoji are one
+    // Backspace each; consecutive text is merged into a single insertText.
+    const seg = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('pl', { granularity: 'grapheme' }) : null;
+    const graphemes = s => seg ? [...seg.segment(s)].map(x => x.segment) : Array.from(s);
+    const queue = [];
+    let last = [], timer = null;
+    const MAX_QUEUE = 240;
+    const pump = () => {
+      timer = null;
+      const op = queue.shift();
+      if (!op) return;
+      // Edits typed for a socket that has since closed are discarded, never replayed.
+      if (op.gen !== connGen || ws?.readyState !== 1) { queue.length = 0; return; }
+      sendInput(op.text != null ? { type: 'text', text: op.text } : { type: 'key', key: op.key }, { fallback: false });
+      if (queue.length) timer = setTimeout(pump, 50);
+    };
+    const push = op => {
+      const tail = queue[queue.length - 1];
+      if (ws?.readyState !== 1) { toast('Brak połączenia — tekst nie został wysłany', true); return; }
+      op.gen = connGen;
+      if (op.text != null && tail?.text != null && tail.gen === op.gen && tail.text.length + op.text.length <= 2000) tail.text += op.text;
+      else if (queue.length < MAX_QUEUE) queue.push(op);
+      else { toast('Za szybko — część zmian nie dotarła do telewizora', true); return; }
+      if (!timer) timer = setTimeout(pump, 0);
+    };
     input.addEventListener('input', () => {
-      const v = input.value;
+      const now = graphemes(input.value);
       let common = 0;
-      while (common < last.length && common < v.length && last[common] === v[common]) common++;
-      for (let i = 0; i < last.length - common; i++) sendInput({ type: 'key', key: 'backspace' });
-      const added = v.slice(common);
-      if (added) sendInput({ type: 'text', text: added.slice(0, 2000) });
-      last = v;
+      while (common < last.length && common < now.length && last[common] === now[common]) common++;
+      for (let i = 0; i < last.length - common; i++) push({ key: 'backspace' });
+      const added = now.slice(common).join('');
+      if (added) push({ text: added.slice(0, 2000) });
+      last = now;
     });
+    const enter = () => { push({ key: 'ok' }); input.value = ''; last = []; };
     input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); sendInput({ type: 'key', key: 'ok' }); input.value = ''; last = ''; }
-      else if (e.key === 'Backspace' && !input.value) sendInput({ type: 'key', key: 'backspace' });
+      if (e.key === 'Enter') { e.preventDefault(); enter(); }
+      else if (e.key === 'Backspace' && !input.value) push({ key: 'backspace' });
     });
+    const stop = () => { queue.length = 0; clearTimeout(timer); timer = null; };
+    document.addEventListener('visibilitychange', stop, { once: true });
     openSheet([
       h('h2', null, 'Klawiatura'),
       h('p', { class: 'lead' }, 'Najpierw zaznacz pole tekstowe na telewizorze. Możesz też dyktować — mikrofon jest na klawiaturze iPhone’a.'),
       input,
       h('div', { class: 'actions' },
-        h('button', { type: 'button', class: 'btn', onclick: () => sendInput({ type: 'key', key: 'backspace' }) }, 'Usuń znak'),
-        h('button', { type: 'button', class: 'btn primary', onclick: () => { sendInput({ type: 'key', key: 'ok' }); input.value = ''; last = ''; } }, 'Enter')),
-    ]);
+        h('button', { type: 'button', class: 'btn', onclick: () => { if (last.length) { last = last.slice(0, -1); input.value = last.join(''); } push({ key: 'backspace' }); } }, 'Usuń znak'),
+        h('button', { type: 'button', class: 'btn primary', onclick: enter }, 'Enter')),
+    ], { onClose: () => { stop(); document.removeEventListener('visibilitychange', stop); } });
     input.focus();
   }
 
@@ -544,7 +611,7 @@
     const step = failed ? -1 : STAGE_STEP[op.stage] ?? 0;
     fill(ui.opBox,
       h('div', { class: 'progress', 'aria-hidden': 'true' }, [0, 1, 2, 3].map(i => h('i', { class: i < step ? 'done' : i === step ? (op.state === 'completed' ? 'done' : 'now') : '' }))),
-      h('p', { class: `op-stage ${failed ? 'op-error' : ''}`, role: 'status' }, failed ? (op.error?.message || STAGES.failed) : (STAGES[op.stage] || op.stage)),
+      h('p', { class: `op-stage ${failed ? 'op-error' : ''}`, role: 'status' }, failed ? (op.error ? errorText(op.error) : STAGES.failed) : (STAGES[op.stage] || op.stage)),
       op.stage === 'selecting_source' || (op.stage === 'launching' && S?.tv?.configured && !S?.tv?.capabilities?.source) ? h('p', { class: 'lead' }, S?.tv?.capabilities?.source ? '' : 'Ten telewizor nie pozwala wybrać HDMI z Home Assistanta — jeśli obraz się nie pojawi, wybierz wejście NUC pilotem TV.') : null,
       h('div', { class: 'actions' }, h('button', { type: 'button', class: 'btn', onclick: () => closeSheet() }, failed || op.state === 'completed' ? 'Zamknij' : 'Ukryj')));
     if (op.state === 'completed') { haptic(20); setTimeout(() => { if (ui.op?.id === op.id) closeSheet(); }, 1600); }
@@ -630,10 +697,17 @@
   }
 
   // ---------------------------------------------------------------- voice / text commands
+  function voiceBadge() {
+    const assist = S?.capabilities?.voice === 'assist_text';
+    return [icon('mic'), h('span', null,
+      h('b', null, assist ? 'Tekst i dyktowanie, zrozumienie przez Home Assistant Assist' : 'Tekst i dyktowanie iPhone’a'),
+      assist ? 'Polecenia, których pilot nie zna, trafiają do Assist w Twoim Home Assistancie.' : 'Rozpoznawanie mowy na serwerze nie jest włączone. Stuknij pole i użyj mikrofonu na klawiaturze, aby podyktować polecenie.')];
+  }
   function renderVoice() {
     const view = $('view-voice');
+    // Built once: the typed command and history survive live state updates.
+    if (ui.voiceBadge) { fill(ui.voiceBadge, voiceBadge()); return; }
     view.classList.add('scroll');
-    const assist = S?.capabilities?.voice === 'assist_text';
     const input = h('input', { type: 'text', enterkeyhint: 'send', autocomplete: 'off', placeholder: 'Np. Otwórz Netflix', 'aria-label': 'Polecenie' });
     const list = h('ul', { class: 'history', 'aria-live': 'polite' });
     const drawHistory = () => fill(list, ui.history.map(item => h('li', { class: item.ok ? 'ok' : 'fail' }, h('span', null, item.text), h('span', { class: 'r' }, item.result))));
@@ -655,9 +729,7 @@
     const form = h('form', { class: 'cmd-form', onsubmit: e => { e.preventDefault(); run(input.value); } }, input, h('button', { type: 'submit', class: 'btn primary', 'aria-label': 'Wyślij polecenie' }, icon('send')));
     fill(view,
       h('h1', null, 'Polecenia'),
-      h('div', { class: 'mode-badge' }, icon('mic'), h('span', null,
-        h('b', null, assist ? 'Tekst i dyktowanie, zrozumienie przez Home Assistant Assist' : 'Tekst i dyktowanie iPhone’a'),
-        assist ? 'Polecenia, których pilot nie zna, trafiają do Assist w Twoim Home Assistancie.' : 'Rozpoznawanie mowy na serwerze nie jest włączone. Stuknij pole i użyj mikrofonu na klawiaturze, aby podyktować polecenie.')),
+      ui.voiceBadge = h('div', { class: 'mode-badge' }, voiceBadge()),
       form,
       h('h3', { class: 'section-title' }, 'Przykłady'),
       h('div', { class: 'chips' }, EXAMPLES.map(t => h('button', { type: 'button', class: 'chip', onclick: () => run(t) }, t))),

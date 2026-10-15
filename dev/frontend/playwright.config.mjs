@@ -8,7 +8,7 @@ const PORT = Number(process.env.MOCK_PORT || 8099);
 const channel = process.env.PW_CHANNEL || 'chrome';
 
 export default defineConfig({
-  testDir: '../../tests/e2e',
+  testDir: './e2e',
   fullyParallel: false,
   workers: 1, // one shared mock backend
   retries: process.env.CI ? 1 : 0,

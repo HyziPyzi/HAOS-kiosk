@@ -81,6 +81,31 @@
     ['home_assistant', 'Home Assistant', null], ['browser', 'Przeglądarka', null],
   ].map(([id, name, url]) => ({ id, name, url, icon: id, kind: 'builtin' }));
 
+  // Backend messages stay English for diagnostics; people see Polish by error code.
+  const ERRORS = {
+    unauthorized: 'Sparuj ten telefon z telewizorem.',
+    forbidden: 'Brak dostępu. Otwórz pilota pod adresem pokazanym na telewizorze.',
+    origin: 'Żądanie odrzucone ze względów bezpieczeństwa. Odśwież stronę.',
+    private_lan: 'Pilot działa tylko w domowej sieci Wi-Fi.',
+    content_type: 'Nieprawidłowe żądanie. Odśwież stronę.',
+    rate_limited: 'Za dużo prób. Spróbuj ponownie za chwilę.',
+    busy: 'Trwa już uruchamianie innej aplikacji.',
+    tv_only: 'Tę czynność wykonasz na telewizorze.',
+    https_required: 'Otwórz pilota przez bezpieczny adres HTTPS.',
+    invalid_pin: 'Nieprawidłowy albo wygasły kod. Sprawdź kod na telewizorze.',
+    pairing_inactive: 'Na telewizorze nie ma aktywnego kodu. Wybierz tam „Sparuj telefon”.',
+    connection_limit: 'Za dużo otwartych pilotów. Zamknij pilota na innym urządzeniu.',
+    unknown_command: 'Nie rozumiem tego polecenia.',
+    invalid_request: 'Tego nie da się zrobić przy obecnych ustawieniach.',
+    invalid_input: 'Telewizor odrzucił to polecenie.',
+    http_error: 'Telewizor odrzucił żądanie.',
+    unavailable: 'Sterowanie jest chwilowo niedostępne. Sprawdź, czy Chrome działa.',
+    ha_unavailable: 'Home Assistant nie odpowiada.',
+    launch_failed: 'Nie udało się uruchomić aplikacji. Sprawdź telewizor i Chrome.',
+    cancelled: 'Uruchamianie zostało przerwane.',
+  };
+  const errorText = (error, status) => ERRORS[error?.code] || (error?.code ? `Nie udało się (kod: ${error.code}).` : `Nie udało się (błąd ${status || 'sieci'}).`);
+
   // ---------------------------------------------------------------- DOM helpers
   function h(tag, props, ...kids) {
     const el = document.createElement(tag);
@@ -142,7 +167,7 @@
     let data = null;
     try { data = await response.json(); } catch (_) { /* empty body */ }
     if (!response.ok) {
-      const error = new Error(data?.error?.message || `Błąd ${response.status}`);
+      const error = new Error(errorText(data?.error, response.status));
       error.status = response.status; error.code = data?.error?.code;
       throw error;
     }
@@ -247,7 +272,8 @@
   }
   function focusKey(key, root = scope()) {
     const list = navigables(root);
-    focusEl(list.find(el => el.dataset.key === key) || list[0]);
+    // Without a remembered key, land on content rather than the header Back button.
+    focusEl(list.find(el => el.dataset.key === key) || list.find(el => !el.dataset.key?.endsWith(':back')) || list[0]);
   }
   function reveal(el) {
     const track = el.closest('.row-track');
@@ -275,19 +301,29 @@
     if (!list.includes(cur)) { focusEl(list[0]); return; }
     const a = cur.getBoundingClientRect();
     const ax = a.left + a.width / 2, ay = a.top + a.height / 2;
-    let best = null, bestScore = Infinity;
+    const horizontal = dir === 'left' || dir === 'right';
+    const found = [];
     for (const el of list) {
       if (el === cur) continue;
       const b = el.getBoundingClientRect();
       const bx = b.left + b.width / 2, by = b.top + b.height / 2;
+      // Edge-based cone: a candidate must really lie in that direction (focused
+      // tiles are scaled, so allow a small overlap), then prefer aligned items.
+      const T = 24;
       let main, cross;
-      if (dir === 'right') { if (bx <= ax + 2 || b.left < a.left + 4) continue; main = Math.max(0, b.left - a.right); cross = Math.abs(by - ay); }
-      else if (dir === 'left') { if (bx >= ax - 2 || b.right > a.right - 4) continue; main = Math.max(0, a.left - b.right); cross = Math.abs(by - ay); }
-      else if (dir === 'down') { if (by <= ay + 2 || b.top < a.top + 4) continue; main = Math.max(0, b.top - a.bottom); cross = Math.max(0, b.left - a.right, a.left - b.right) + Math.abs(bx - ax) * 0.15; }
-      else { if (by >= ay - 2 || b.bottom > a.bottom - 4) continue; main = Math.max(0, a.top - b.bottom); cross = Math.max(0, b.left - a.right, a.left - b.right) + Math.abs(bx - ax) * 0.15; }
-      const score = main + cross * (dir === 'left' || dir === 'right' ? 3 : 2);
-      if (score < bestScore) { bestScore = score; best = el; }
+      if (dir === 'right') { if (b.left < a.right - T || bx <= ax) continue; main = Math.max(0, b.left - a.right); cross = Math.max(0, b.top - a.bottom, a.top - b.bottom) + Math.abs(by - ay) * 0.1; }
+      else if (dir === 'left') { if (b.right > a.left + T || bx >= ax) continue; main = Math.max(0, a.left - b.right); cross = Math.max(0, b.top - a.bottom, a.top - b.bottom) + Math.abs(by - ay) * 0.1; }
+      else if (dir === 'down') { if (b.top < a.bottom - T || by <= ay) continue; main = Math.max(0, b.top - a.bottom); cross = Math.max(0, b.left - a.right, a.left - b.right) + Math.abs(bx - ax) * 0.15; }
+      else { if (b.bottom > a.top + T || by >= ay) continue; main = Math.max(0, a.top - b.bottom); cross = Math.max(0, b.left - a.right, a.left - b.right) + Math.abs(bx - ax) * 0.15; }
+      const overlap = horizontal ? Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0 : true;
+      found.push({ el, main, cross, overlap });
     }
+    // Nearest row/column first (TV behaviour), then the best aligned item in it.
+    // Sideways moves stay on the same line when anything there overlaps (top bar, rows).
+    const pool = horizontal && found.some(f => f.overlap) ? found.filter(f => f.overlap) : found;
+    const nearest = Math.min(...pool.map(f => f.main));
+    let best = null, bestScore = Infinity;
+    for (const f of pool) if (f.main <= nearest + 60 && f.cross + f.main * 0.05 < bestScore) { bestScore = f.cross + f.main * 0.05; best = f.el; }
     if (!best) return;
     // Entering a row vertically returns to the item last used in that row.
     const row = best.closest('[data-row]');
@@ -628,7 +664,7 @@
     if (op.stage === 'launching') stage = `Otwieram ${L.app.name}`;
     const tile = appTile(L.app, 'launch:tile', { run: () => {} });
     tile.removeAttribute('data-nav');
-    const parts = [tile, h('p', { class: 'stage' }, failed ? (op.error?.message || STAGES.failed) : stage)];
+    const parts = [tile, h('p', { class: 'stage' }, failed ? (op.error ? errorText(op.error) : STAGES.failed) : stage)];
     if (!failed) parts.push(h('div', { class: 'steps', 'aria-hidden': 'true' }, [0, 1, 2, 3].map(i => h('i', { class: i < step ? 'done' : i === step ? 'now' : '' }))));
     if (failed) parts.push(h('div', { class: 'actions' },
       h('button', { class: 'btn', nav: 'launch:close', onclick: () => closeLayer() }, 'Zamknij'),
