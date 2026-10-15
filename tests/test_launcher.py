@@ -163,7 +163,8 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                 start = source.index('resolve_browser_binary()')
                 end = source.index('\nbrowser_process_running()', start)
                 script = 'BROWSER_ENGINE=chrome\nCHROMIUM_PROFILE_DIR="$1"\n' + source[start:end]
-                script += '\nresolve_browser_binary\nexec "$BROWSER" "${BROWSER_FLAGS[@]}" "$2"\n'
+                # Test-only: v3 refuses loopback URLs, so fixtures live on a mapped host alias.
+                script += '\nresolve_browser_binary\nexec "$BROWSER" "${BROWSER_FLAGS[@]}" --host-resolver-rules="MAP kiosk-fixture.test 127.0.0.1" --no-proxy-server "$2"\n'
                 chrome = subprocess.Popen(['bash', '-c', script, 'test', str(root / 'profile'), launcher_url], env=env, stdout=log, stderr=log)
                 await wait_for('document.activeElement?.dataset?.key === "fav:netflix"')
                 await wait_for('document.querySelector("#clock").textContent.length > 0')
@@ -211,7 +212,7 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                 # One-click launch through the real v3 API and CDP, into local fixtures
                 # (user shortcuts) instead of real VOD services.
                 names = ('netflix', 'max', 'prime', 'youtube')
-                shortcuts = [{'id': f'fx{name}', 'name': name, 'url': f'http://127.0.0.1:8767/fixture/{name}'} for name in names]
+                shortcuts = [{'id': f'fx{name}', 'name': name, 'url': f'http://kiosk-fixture.test:8767/fixture/{name}'} for name in names]
                 body = json.dumps(json.dumps({'shortcuts': shortcuts}))
                 saved = await value('fetch("/api/v3/settings",{method:"PATCH",headers:{"Content-Type":"application/json"},body:' + body + '}).then(r=>r.status)')
                 self.assertEqual(saved, 200)
@@ -221,7 +222,7 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(await focus_key(f'app:fx{app_name}'), f'app:fx{app_name}')
                     await key('Enter')
                     await wait_for(f'document.title === "{app_name}"')
-                    self.assertEqual((await controller.get_page_target())['url'], f'http://127.0.0.1:8767/fixture/{app_name}')
+                    self.assertEqual((await controller.get_page_target())['url'], f'http://kiosk-fixture.test:8767/fixture/{app_name}')
                 # The actual Openbox shortcut returns from a page that swallows keys.
                 window = subprocess.check_output(['xdotool', 'search', '--onlyvisible', '--class', 'Google-chrome'], env=env, text=True).splitlines()[-1]
                 subprocess.run(['xdotool', 'windowactivate', '--sync', window], env=env, check=True)
@@ -238,7 +239,7 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(await focus_key('app:browser'), 'app:browser')
                 await key('Enter')
                 await wait_for('document.activeElement?.id === "url-input"')
-                await controller.evaluate('document.querySelector("#url-input").value="http://127.0.0.1:8767/fixture/www"')
+                await controller.evaluate('document.querySelector("#url-input").value="http://kiosk-fixture.test:8767/fixture/www"')
                 await key('Enter')
                 await wait_for('document.title === "www"')
                 # Existing bearer-authenticated API invokes the real CDP CLI.
