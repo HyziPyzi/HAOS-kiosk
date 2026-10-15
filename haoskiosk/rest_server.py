@@ -73,6 +73,7 @@ from typing import Any, Awaitable, cast, Callable, Final, Literal, TypedDict, Ty
 from urllib.parse import urlsplit
 from aiohttp import web  #type: ignore[import-not-found] #pylint: disable=import-error
 from browser_ctl import is_valid_url
+from smart_tv import SmartTV, ASSET, TYPES, tls_context
 
 #-------------------------------------------------------------------------------
 __version__ = "1.3.0"
@@ -1150,7 +1151,12 @@ async def security_middleware(
 async def create_app() -> web.Application:
     """Create and configure the aiohttp Application instance."""
 
-    app = web.Application(middlewares=[security_middleware])
+    smart = SmartTV()
+    app = web.Application(middlewares=[smart.middleware, security_middleware])
+    app["smart_tv"] = smart
+    app.on_startup.append(smart.start)
+    app.on_cleanup.append(smart.close)
+    smart.routes(app)
 
     async def launcher_page(_: web.Request) -> web.Response:
         return web.Response(body=(LAUNCHER_DIR / "index.html").read_bytes(), content_type="text/html", headers=LAUNCHER_HEADERS)
@@ -1158,10 +1164,12 @@ async def create_app() -> web.Application:
     async def launcher_asset(request: web.Request) -> web.Response:
         # Explicit allowlist; no path traversal or profile files can be served.
         name = request.match_info["asset"]
-        content_type = {"app.js": "application/javascript", "style.css": "text/css"}.get(name)
-        if content_type is None:
+        if not ASSET.fullmatch(name):
             raise web.HTTPNotFound()
-        return web.Response(body=(LAUNCHER_DIR / name).read_bytes(), content_type=content_type, headers=LAUNCHER_HEADERS)
+        path = LAUNCHER_DIR / name
+        if not path.is_file() or not path.resolve().is_relative_to(LAUNCHER_DIR.resolve()):
+            raise web.HTTPNotFound()
+        return web.Response(body=path.read_bytes(), content_type=TYPES[name.rsplit('.', 1)[1]], headers=LAUNCHER_HEADERS)
 
     async def launcher_config(_: web.Request) -> web.Response:
         # This response contains only the HA destination, never options/secrets.
@@ -1173,7 +1181,7 @@ async def create_app() -> web.Application:
     app.router.add_get("/launcher", launcher_page)
     app.router.add_get("/launcher/", launcher_page)
     app.router.add_get("/launcher/config", launcher_config)
-    app.router.add_get("/launcher/{asset}", launcher_asset)
+    app.router.add_get("/launcher/{asset:.*}", launcher_asset)
 
     async def editor_page(_: web.Request) -> web.Response:
         return web.Response(text=EDITOR_HTML, content_type="text/html")
@@ -1274,7 +1282,25 @@ async def main() -> None:
         logging.error("Failed to bind to %s:%s → %s", REST_IP, REST_PORT, exc)
         sys.exit(1)
 
-    await asyncio.Event().wait()  # run forever
+    remote_runner = None
+    try:
+        context = tls_context()
+        smart = app["smart_tv"]
+        if context and smart.remote_origin:
+            remote_runner = web.AppRunner(smart.remote_app(), access_log=None)
+            await remote_runner.setup()
+            await web.TCPSite(remote_runner, os.getenv("SMART_TV_BIND", "0.0.0.0"),
+                              int(os.getenv("SMART_TV_PORT", "8443")), ssl_context=context).start()
+            smart.remote_enabled = True
+            logging.info("Smart TV HTTPS remote ready (private LAN only)")
+    except (OSError, ValueError, ssl.SSLError):
+        logging.error("Smart TV remote disabled: verify TLS certificate, key, origin and port; local TV continues")
+    try:
+        await asyncio.Event().wait()  # run forever
+    finally:
+        if remote_runner:
+            await remote_runner.cleanup()
+        await runner.cleanup()
 
 
 if __name__ == "__main__":

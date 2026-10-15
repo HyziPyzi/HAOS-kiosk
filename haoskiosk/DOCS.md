@@ -1,4 +1,20 @@
-# HAOS Kiosk Display - Chrome DRM
+# Smart TV OS v3.0 - HAOS Kiosk / Chrome DRM
+
+
+**Wersja 3.0.0** rozwija istniejący dodatek: launcher TV, pilot PWA na iPhone,
+parowanie PIN i sesje, profile i personalizacja, Panasonic przez Home Assistant,
+wybrane encje domu, polskie komendy tekstowe i śledzone uruchamianie aplikacji.
+HTTPS pilota jest opcjonalne i domyślnie wyłączone. Chrome, jego profil, Widevine,
+uBlock Origin Lite, audio/GPU i Ctrl+Alt+H korzystają z istniejących mechanizmów.
+HAOS działa w tle; nie wyłączamy NUC-a przy wyłączeniu TV.
+
+Dokumentacja v3: [architektura](https://github.com/HyziPyzi/HAOS-kiosk/blob/main/docs/smart-tv-v3/ARCHITECTURE.md),
+[kontrakt API](https://github.com/HyziPyzi/HAOS-kiosk/blob/main/docs/smart-tv-v3/API_CONTRACT.md),
+[HTTPS, zaufanie iOS i parowanie](https://github.com/HyziPyzi/HAOS-kiosk/blob/main/docs/smart-tv-v3/HTTPS.md),
+[aktualizacja, HA i rollback](https://github.com/HyziPyzi/HAOS-kiosk/blob/main/docs/smart-tv-v3/UPGRADE_ROLLBACK.md).
+Wersja wymaga testów akceptacyjnych na fizycznym NUC-u i iPhone; sama obecność
+Widevine nie potwierdza odtwarzania Netflix/Max/Prime. Bazowy głos to komendy tekstowe
+z dyktowaniem klawiatury telefonu, opcjonalnie HA Assist text; bez audio STT w dodatku.
 
 Eksperymentalny fork [Welizard-bot/HAOS-kiosk](https://github.com/Welizard-bot/HAOS-kiosk), oparty na projekcie Jeffa Kosowsky'ego. Uruchamia Xorg, Openbox i **oficjalny Google Chrome Stable** na fizycznym HDMI komputera z Home Assistant OS. Home Assistant i Supervisor działają dalej w tle.
 
@@ -15,7 +31,7 @@ Debian/glibc i Google Chrome zwiększają szansę zgodności z DRM. Widevine poc
 3. Podłącz telewizor do HDMI NUC-a, włącz TV i wybierz odpowiednie wejście **przed startem aplikacji**. Podłącz klawiaturę/mysz lub ekran dotykowy USB.
 4. Otwórz **Ustawienia → Apps → sklep → ⋮ → Repositories** (w starszym interfejsie: Dodatki → Sklep → Repozytoria).
 5. Wklej **https://github.com/HyziPyzi/HAOS-kiosk** i odśwież sklep.
-6. Wybierz **HAOS Kiosk Display - Chrome DRM**, wersja **2.2.0**, i zainstaluj. Pierwszy build pobiera pakiety i może potrwać kilka minut. Potrzebny jest dostęp do internetu i wolne miejsce na dysku.
+6. Wybierz **Smart TV OS - Chrome DRM**, wersja **3.0.0**, i zainstaluj. Pierwszy build pobiera pakiety i może potrwać kilka minut. Potrzebny jest dostęp do internetu i wolne miejsce na dysku.
 7. Zatrzymaj oryginalny kiosk przed uruchomieniem tego forka. Oba repo mogą być dodane do sklepu, ale dwa Xorg nie mogą jednocześnie sterować tym samym ekranem. Slug `haoskiosk_chrome` i prywatny katalog konfiguracji są oddzielne od oryginału.
 8. Zapisz konfigurację poniżej, uruchom aplikację i sprawdź zakładkę **Logi**. Po weryfikacji włącz automatyczny start.
 

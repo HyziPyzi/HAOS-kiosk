@@ -86,8 +86,11 @@ class ChromiumPageSession:
             {"id": command_id, "method": method, "params": params or {}}
         )
 
+        deadline = asyncio.get_running_loop().time() + 5
         while True:
-            message = await self._websocket.receive()
+            message = await asyncio.wait_for(
+                self._websocket.receive(), max(0, deadline - asyncio.get_running_loop().time())
+            )
             if message.type is WSMsgType.TEXT:
                 payload = json.loads(message.data)
                 if payload.get("id") != command_id:

@@ -6,6 +6,18 @@ on:
 permissions:
   contents: read
 jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install aiohttp PyYAML
+      - name: Smart TV auth, real TLS/WS, HA and CDP fixtures
+        env:
+          PYTHONPATH: haoskiosk
+        run: python -m unittest discover -s tests -p test_smart_tv.py -v
   validate:
     runs-on: ubuntu-latest
     steps:
