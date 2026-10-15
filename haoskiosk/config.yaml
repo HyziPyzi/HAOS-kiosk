@@ -1,9 +1,9 @@
 ---
-name: "HAOS Kiosk Display - Chrome DRM"
+name: "Smart TV OS - Chrome DRM"
 description: |
   Physical HDMI kiosk with official Google Chrome Stable on Debian/glibc.
   Experimental amd64 fork for Intel graphics and Chrome-managed Widevine.
-version: "2.2.0"
+version: "3.0.0"
 slug: "haoskiosk_chrome"
 url: "https://github.com/HyziPyzi/HAOS-kiosk"
 stage: experimental
@@ -17,6 +17,7 @@ host_network: true
 init: false
 apparmor: false
 hassio_api: true
+homeassistant_api: true
 audio: true
 usb: true
 video: true
@@ -100,6 +101,12 @@ options:
   rest_ip: "127.0.0.1"
   rest_port: 8080
   rest_bearer_token: ""
+  smart_tv_remote: false
+  smart_tv_origin: ""
+  smart_tv_bind: "0.0.0.0"
+  smart_tv_port: 8443
+  smart_tv_cert: "/config/smart-tv/tls/server.crt"
+  smart_tv_key: "/config/smart-tv/tls/server.key"
   gestures:
     - '"1_ANY_1_CORNER_TOPRIGHT": {"cmds": "kiosk.toggle_keyboard", "msg": "Toggling Onboard keyboard..."}'
     - '"[Left]_MOUSE_3_CLICK": {"cmds": "kiosk.toggle_keyboard", "msg": "Toggling Onboard keyboard..."}'
@@ -146,6 +153,12 @@ schema:
   rest_ip: str
   rest_port: int(1024,49151)
   rest_bearer_token: password
+  smart_tv_remote: bool
+  smart_tv_origin: str
+  smart_tv_bind: str
+  smart_tv_port: int(1024,49151)
+  smart_tv_cert: str
+  smart_tv_key: str
   gestures:
     - str
   command_whitelist: str

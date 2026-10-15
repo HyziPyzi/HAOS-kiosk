@@ -162,6 +162,12 @@ load_config_var AUDIO_SINK auto
 load_config_var REST_PORT 8080
 load_config_var REST_IP "127.0.0.1"
 load_config_var REST_BEARER_TOKEN "" 1  # Mask token in log
+load_config_var SMART_TV_REMOTE false
+load_config_var SMART_TV_ORIGIN ""
+load_config_var SMART_TV_BIND "0.0.0.0"
+load_config_var SMART_TV_PORT 8443
+load_config_var SMART_TV_CERT "/config/smart-tv/tls/server.crt"
+load_config_var SMART_TV_KEY "/config/smart-tv/tls/server.key"
 load_config_var COMMAND_WHITELIST "^$" 1  # Default is no user commands allowed
 load_config_var TOUCH_DEBUG_LEVEL 1
 load_config_var DEBUG_MODE false

@@ -1,5 +1,25 @@
 # Changelog
 
+## 3.0.0 — 2026-10-15
+
+- Smart TV launcher and iPhone remote PWA, local assets, keyboard focus, touchpad,
+  profiles, favorites, tile order, recent apps and overscan safe area.
+- Shared `/api/v3` JSON/WebSocket contract; separate opt-in HTTPS phone application
+  with PIN pairing, hashed persistent sessions, expiry, revocation and Origin checks.
+- Home Assistant selected entities, Panasonic power/status, feature-checked HDMI
+  and volume, tracked one-click app launch and configurable movie scenario.
+- Polish text commands and optional HA Assist text fallback; iPhone dictation uses
+  the text field. Base release does not receive microphone audio or install STT.
+- SQLite persistence independent of Chrome profile; bounded input/WS queues and HA
+  refresh. Fixed command allowlists; no shell or CDP command proxy in the remote.
+- Existing Chrome Stable, Widevine, uBOL policies/exceptions, profile, GPU, audio,
+  legacy authenticated REST and Ctrl+Alt+H retained. Linux privileges unchanged;
+  `homeassistant_api` added for Core API access through Supervisor.
+- Local CA/iOS HTTPS, update, backup, rollback, API and architecture documentation.
+- Automated backend tests distinguish real TLS/WS from HA/CDP/TV fixtures. Actual
+  NUC DRM playback, HDMI audio, TV behavior and iPhone installation need acceptance
+  tests on hardware; software CI does not establish those results.
+
 ## 2.2.0 — 2026-10-15
 
 - Official uBlock Origin Lite MV3 installed/updated by native Google Chrome Linux policy from Chrome Web Store.
