@@ -836,6 +836,9 @@ if [ "$DEBUG_MODE" != true ]; then
     bashio::log.info "Launching Google Chrome (PID=$!) with persistent profile"
 
     if [ "$BROWSER_ENGINE" = "chrome" ]; then
+        if ! python3 -u /ubol_config.py; then
+            bashio::log.warning "uBOL settings need attention; check chrome://extensions or choose adblock_mode off"
+        fi
         python3 -u /chromium_watchdog.py &
         bashio::log.info "Launching Chrome watchdog(PID=$!) on DevTools port $CHROMIUM_DEVTOOLS_PORT"
     fi

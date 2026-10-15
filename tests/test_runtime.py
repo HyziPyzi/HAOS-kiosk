@@ -16,6 +16,10 @@ import rest_server as rest
 
 class ValidationTests(unittest.TestCase):
     def test_urls_and_origin(self):
+        self.assertTrue(browser.is_auxiliary_target({'url': 'chrome://extensions/?haoskiosk-adblock-config'}))
+        self.assertTrue(browser.is_auxiliary_target({'url': 'chrome-extension://ddkjiahejlhfcafbddmgiahcphecmpfh/dashboard.html?haoskiosk-adblock-config'}))
+        self.assertFalse(browser.is_auxiliary_target({'url': 'chrome://extensions/'}))
+        self.assertFalse(browser.is_auxiliary_target({'url': 'https://example.org/?haoskiosk-adblock-config'}))
         for url in ('https://www.netflix.com/', 'https://play.max.com/',
                     'https://www.primevideo.com/', 'https://open.spotify.com/',
                     'chrome://components', 'chrome://gpu', 'chrome://version',

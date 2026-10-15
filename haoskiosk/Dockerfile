@@ -39,7 +39,7 @@ RUN test "$(dpkg --print-architecture)" = amd64 \
 WORKDIR /
 COPY xorg.conf.default /etc/X11/
 COPY translations/*.yaml /translations/
-COPY run.sh browser_ctl.py chrome_policy.py chromium_watchdog.py rest_server.py mouse_touch_inputs.py gesture_commands.json /
+COPY run.sh browser_ctl.py chrome_policy.py ubol_config.py chromium_watchdog.py rest_server.py mouse_touch_inputs.py gesture_commands.json /
 COPY launcher/ /launcher/
 RUN chmod 0755 /run.sh
 CMD ["/run.sh"]

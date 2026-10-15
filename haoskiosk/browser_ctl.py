@@ -14,6 +14,7 @@ import re
 import sys
 from collections.abc import Awaitable, Callable
 from typing import Any
+from urllib.parse import urlsplit
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType  # type: ignore[import-not-found]
 
@@ -63,6 +64,11 @@ def normalize_url(url: str | None) -> str:
     if not is_valid_url(candidate):
         raise ValueError("Invalid or unsupported URL")
     return candidate
+
+
+def is_auxiliary_target(target: dict[str, Any]) -> bool:
+    parsed = urlsplit(target.get('url', ''))
+    return parsed.scheme in {'chrome', 'chrome-extension'} and parsed.query == 'haoskiosk-adblock-config'
 
 
 class ChromiumPageSession:
@@ -125,6 +131,7 @@ class ChromiumController:
             target
             for target in targets
             if target.get("type") == "page" and target.get("webSocketDebuggerUrl")
+            and not is_auxiliary_target(target)
         ]
         if not page_targets:
             raise RuntimeError("No Chromium page target found")
@@ -152,6 +159,7 @@ class ChromiumController:
                 if isinstance(target, dict)
                 and target.get("type") == "page"
                 and target.get("webSocketDebuggerUrl")
+                and not is_auxiliary_target(target)
             ]
             if not page_targets:
                 raise RuntimeError("No Chromium page target found")

@@ -16,6 +16,7 @@ from aiohttp import ClientSession
 
 import browser_ctl as browser
 import chrome_policy as policy
+import ubol_config
 from chromium_watchdog import extract_evaluate_value
 
 
@@ -133,6 +134,9 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                                               env={**os.environ, 'DISPLAY': ':97', 'CHROMIUM_DEVTOOLS_PORT': '9224'},
                                               stdout=log, stderr=log)
                     await wait_value('document.readyState', lambda state: state == 'complete')
+                    configured = await asyncio.wait_for(ubol_config.configure(
+                        state_path=root / 'ubol-managed-state.json', port=9224), timeout=180)
+                    print(configured, flush=True)
                     await navigate('chrome://extensions/')
                     info = await extension_info(mode != 'off' and iteration != 5)
                     print(f'Installed uBOL: {info}; mode={mode}; iteration={iteration}', flush=True)

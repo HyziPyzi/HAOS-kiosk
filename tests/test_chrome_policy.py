@@ -8,9 +8,16 @@ import unittest
 import yaml
 
 import chrome_policy as policy
+import ubol_config
 
 
 class ChromePolicyTests(unittest.TestCase):
+    def test_owned_exclusions_do_not_remove_manual_exceptions(self):
+        self.assertEqual(ubol_config.reconcile_exclusions(
+            ['manual.example.org', 'netflix.com', 'old.example.org'],
+            ['netflix.com', 'new.example.org'], ['netflix.com', 'old.example.org']),
+            (['manual.example.org', 'netflix.com', 'new.example.org'], ['netflix.com', 'new.example.org']))
+
     def test_upgrade_defaults_match_supervisor(self):
         options = yaml.safe_load(Path('haoskiosk/config.yaml').read_text())['options']
         self.assertEqual(policy.build_policy({}), policy.build_policy(options))
