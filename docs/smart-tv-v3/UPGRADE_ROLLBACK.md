@@ -14,6 +14,12 @@ Zachowujemy slug `haoskiosk_chrome`, dane i oficjalny profil Chrome.
 3. Wersja 3.0 nie migruje katalogu profilu Chrome i nie zmienia DRM/adblock, jednak
    pakiet Chrome Stable może być nowszy przy budowie. Powrót do starszego Chrome
    powinien używać profilu z backupu wykonanego przed aktualizacją.
+4. Backup HA nie jest gwarancją zachowania gotowego obrazu Docker ani dokładnej
+   wersji Chrome. Przed aktualizacją zachowaj istniejący obraz 2.2.0 w prywatnym
+   lokalnym archiwum lub potwierdź możliwość jego odbudowy z `a8aa67b`. Nie publikuj
+   obrazu z Chrome. Dokładny powrót do starego Chrome wymaga zachowanego obrazu;
+   odbudowa starego źródła może pobrać nowszy Chrome Stable. Nie czyść cache obrazu
+   poprzedniego wydania, dopóki nie zaakceptujesz v3 na NUC-u.
 
 ## Aktualizacja
 
@@ -66,8 +72,9 @@ CPU/RAM podczas odtwarzania i pracy HA. Nie traktuj obecności Widevine jako pla
 
 ## Rollback
 
-Zatrzymaj tylko dodatek. Przywróć wcześniejszy backup tego dodatku wraz z obrazem,
-opcjami i profilem Chrome; w UI HA wybierz przywracanie częściowe wyłącznie dodatku,
+Zatrzymaj tylko dodatek. Przywróć wcześniejszy backup opcji i profilu tego dodatku
+oraz osobno zachowany lokalny obraz 2.2.0, jeśli Supervisor nie ma go już w cache;
+w UI HA wybierz przywracanie częściowe wyłącznie dodatku,
 jeśli nie chcesz odtwarzać stanu całego HA. Alternatywnie odbuduj znany commit/tag 2.2.0
 w lokalnej konfiguracji dodatku i przywróć przedaktualizacyjny profil i opcje z backupu.
 Nie uruchamiaj starego Chrome z profilem zmienionym przez nowszą wersję.
