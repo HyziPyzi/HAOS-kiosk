@@ -138,7 +138,8 @@ i915/Intel HD 520 acceleration and codec decoding, USB/touch on the NUC,
 Supervisor HDMI audio, Netflix/Max/Prime/Spotify account login and actual protected
 content license/playback, HDCP, long-duration playback, 4K/HDR.
 Virtual X11 EME negotiation does not establish service compatibility or playback quality.
-# Smart TV OS v3 verification
+
+## Smart TV OS v3 verification
 
 The v3 backend suite runs with Python 3.13 + aiohttp (both Debian 3.11.16 and latest
 are covered). From the repository root:
@@ -170,7 +171,7 @@ cleartext session fallback. Use isolated development certificates, never real CA
 private keys. Production trusted HTTPS/iOS steps are in
 [HTTPS.md](docs/smart-tv-v3/HTTPS.md).
 
-The existing Docker/X11 suite below remains necessary for Chrome, extension,
+The existing Docker/X11 suite above remains necessary for Chrome, extension,
 profile, startup and Ctrl+Alt+H regressions. GitHub Actions builds the actual amd64
 image. Hardware acceptance and rollback procedure:
 [UPGRADE_ROLLBACK.md](docs/smart-tv-v3/UPGRADE_ROLLBACK.md).
