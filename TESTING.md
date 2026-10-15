@@ -1,6 +1,6 @@
 # uBlock Origin Lite 2.2.0 validation — 2026-10-15
 
-Four policy unit tests pass locally: defaults for upgraded installations, all
+Five policy unit tests pass locally: defaults for upgraded installations, all
 three modes, hostname normalization/validation, empty/custom exceptions, atomic
 policy replacement, preservation of unrelated policies and invalid-input handling.
 Bash syntax and Python/JavaScript syntax are checked locally as well.
@@ -16,22 +16,30 @@ an unavailable store fails the test rather than substituting an unofficial CRX.
 The kiosk policy is restored/removed after this test; existing launcher, profile,
 EME, audio and REST regression tests run in the same container suite.
 
-Online integration currently FAILS: with official Chrome 155.0.8059.79 and
+Native-policy-only integration reproduced a failure with Chrome 155.0.8059.79 and
 unmodified Web Store uBOL 2026.1012.1545, the extension installs and may be
 disabled by the user. Both its dashboard and service worker can directly read the
 correct `storage.managed` values. However, uBOL caches `admin.noFiltering` and
 `admin.defaultFiltering` as empty objects and reports Optimal for excluded hosts.
 Native extension reload does not resolve this. Reproduction and diagnostics:
 [CI run](https://github.com/HyziPyzi/HAOS-kiosk/actions/runs/38691764084).
-The effective-filtering assertions remain strict and are not skipped or marked
-as expected failures. Subtests exercise subsequent restart/off/user-disable
-scenarios even if an earlier effective-mode assertion fails.
+The integration now runs the actual production `ubol_config.py` verifier before
+its strict effective-filtering assertions. This verifier checks native managed
+settings, then uses the official settings panel's messages to reconcile mode and
+exceptions when necessary. It does not modify the signed extension, enable a
+disabled extension, erase manual exceptions or navigate the user's current tab.
+Its temporary background target is excluded from normal kiosk/CDP commands.
+The assertions are not skipped or marked as expected failures. Subtests exercise
+subsequent restart/off/user-disable scenarios; if Chrome keeps the extension
+disabled after off/on, the test simulates the user's manual re-enable before
+verifying the requested settings again.
 
 Native `runtime_blocked_hosts` now also restricts extension access to excluded
-hosts (maximum 100 unique domains). This does not replace the failing checks for
-uBOL's own effective filtering state. The release remains experimental and must
-not be described as fully verified. Configure uBOL manually or use off while
-the managed-settings problem is unresolved.
+hosts (maximum 100 unique domains). This does not replace the checks for uBOL's
+own effective filtering state. Compatibility fallback results are recorded after
+the full workflow completes. The panel-message interface may change in future
+uBOL versions; a failure produces an explicit startup warning instead of claiming
+that settings were applied.
 
 Local Docker Desktop is unavailable. Physical NUC HDMI/GPU/audio,
 remote input and authenticated DRM service playback still require hardware

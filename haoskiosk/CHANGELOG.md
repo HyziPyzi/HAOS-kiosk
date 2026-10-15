@@ -6,6 +6,7 @@
 - Configurable `adblock_mode: off|optimal|complete` (Optimal default), with `normal_installed` so users can disable the extension.
 - Editable `adblock_excluded_domains`, with Netflix, Max and Prime/Amazon defaults through uBOL managed `noFiltering`.
 - Atomic kiosk-owned policy regenerated before Chrome startup; off disables the extension without deleting its profile data.
+- Effective settings verified after launch; official settings-panel compatibility fallback handles the reproduced uBOL managed-cache issue without modifying extension files or re-enabling user-disabled extensions.
 - Chrome policy/extensions diagnostic pages available through the existing authenticated URL command.
 - Policy unit tests and online Chrome install, managed storage, effective mode/exclusion and restart checks.
 - Existing Chrome profile, Widevine, launcher, HDMI/GPU/audio and HID mechanisms retained. No YouTube ad removal or universal DRM compatibility guarantee.

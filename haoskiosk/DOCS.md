@@ -50,7 +50,7 @@ debug_mode: false
 
 ## Blokowanie reklam — uBlock Origin Lite
 
-**Stan weryfikacji 2026-10-15:** instalacja oficjalnego uBOL 2026.1012.1545 w Google Chrome 155.0.8059.79 działa, a polityki są poprawnie widoczne przez `storage.managed`. Test wykrył jednak, że silnik uBOL nie stosuje zarządzanych wyjątków. Automatyczny wybór Complete również wymaga potwierdzenia; domyślny Optimal nie jest dowodem zastosowania polityki. Ta integracja pozostaje eksperymentalna, a pełny test nie przechodzi. Do czasu rozwiązania problemu wybierz tryb i wyjątki ręcznie w opcjach oficjalnego rozszerzenia albo użyj `adblock_mode: off`. Nie traktuj samego wpisu w `chrome://policy` jako potwierdzenia efektywnego filtrowania.
+**Zgodność ustawień:** test z Chrome 155.0.8059.79 i oficjalnym uBOL 2026.1012.1545 wykrył, że poprawnie przekazane polityki nie zawsze stają się efektywnymi ustawieniami uBOL. Dlatego dodatek po starcie sprawdza faktyczny tryb i wyjątki. Gdy potrzeba, ustawia je przez komunikaty używane przez panel ustawień oficjalnego rozszerzenia. Jest to jawne obejście zgodności, zależne od interfejsu uBOL; aktualizacje rozszerzenia mogą wymagać jego dostosowania. Nie zmieniamy kodu ani plików podpisanego rozszerzenia. Nie traktuj samego wpisu w `chrome://policy` jako potwierdzenia efektywnego filtrowania.
 
 Wersja **2.2.0** instaluje darmowe, oficjalne [uBlock Origin Lite (Manifest V3)](https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh), ID `ddkjiahejlhfcafbddmgiahcphecmpfh`. Chrome sam pobiera i aktualizuje rozszerzenie z Chrome Web Store. Nie pobieramy CRX skryptem, nie modyfikujemy rozszerzenia i nie dodajemy drugiej przeglądarki.
 
@@ -87,6 +87,8 @@ Polityka jest generowana przy każdym starcie **przed Chrome**, atomowo do `/etc
 Dodatkowo `ExtensionSettings.runtime_blocked_hosts` ogranicza uprawnienia rozszerzenia do modyfikowania wskazanych hostów bezpośrednio w Chrome. Lista może zawierać maksymalnie 100 unikalnych domen. Jest to dodatkowa ochrona; skuteczność pełnego wyjątku uBOL nadal sprawdzaj w jego panelu i odtwarzaczu.
 
 ### Sprawdzenie instalacji i restartu
+
+Weryfikator używa istniejącego DevTools wyłącznie na loopback. Otwiera tymczasową kartę ustawień w tle i zamyka ją po sprawdzeniu; polecenia kiosku pomijają tę kartę. Nie zmienia aktywnej strony ani flag DRM/GPU. Czeka maksymalnie 180 sekund na instalację/konfigurację, a przy błędzie zapisuje ostrzeżenie i pozwala działać kioskowi. Ręcznie wyłączonego rozszerzenia nie włącza. Plik `/config/ubol-managed-state.json` przechowuje wyłącznie listę wyjątków dodanych przez obejście: pozwala je później usunąć z konfiguracji, zachowując wcześniejsze ręczne wyjątki użytkownika. Oczekiwany komunikat sukcesu to `uBOL ... verified ...` z metodą konfiguracji.
 
 1. Uruchom dodatek z dostępem do internetu. W logach sprawdź komunikat `Chrome uBlock Origin Lite policy`, tryb i liczbę wyjątków. To potwierdza zapis konfiguracji, **nie instalację rozszerzenia**.
 2. Otwórz `chrome://policy` przez opisane niżej `/launch_url`. Wybierz przeładowanie zasad; sprawdź `ExtensionSettings` i zasady uBlock Origin Lite bez błędów. Instalacja z Web Store i odczyt `storage.managed` są asynchroniczne — mogą potrwać.

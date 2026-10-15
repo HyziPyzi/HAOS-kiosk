@@ -12,8 +12,6 @@ import subprocess
 import tempfile
 import unittest
 
-from aiohttp import ClientSession
-
 import browser_ctl as browser
 import chrome_policy as policy
 import ubol_config
@@ -56,24 +54,6 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                                               'chrome.storage.local.get(["admin.noFiltering","admin.defaultFiltering","filteringModeDetails"]), '
                                               'chrome.runtime.sendMessage({what:"getFilteringModeDetails"})])')
                     print('uBOL diagnostics:', diagnostics, flush=True)
-                    print('Installed admin reader:', await value('fetch(chrome.runtime.getURL("js/ext.js"))'
-                          '.then(response => response.text()).then(source => source.slice(source.indexOf("export async function adminRead")))'), flush=True)
-                    targets = await controller.list_targets()
-                    for target in targets:
-                        if target.get('type') != 'service_worker' or policy.EXTENSION_ID not in target.get('url', ''):
-                            continue
-                        async with ClientSession() as client:
-                            async with client.ws_connect(target['webSocketDebuggerUrl']) as websocket:
-                                worker = browser.ChromiumPageSession(websocket)
-                                result = await worker.call('Runtime.evaluate', {
-                                    'expression': 'Promise.all([chrome.storage.managed instanceof Object, '
-                                    'chrome.storage.managed.get(null), '
-                                    'chrome.storage.managed.get("noFiltering"), '
-                                    '(async () => ({browserType:typeof self.browser,same:self.browser===self.chrome,'
-                                    'managedIsObject:self.browser?.storage?.managed instanceof Object,'
-                                    'managed:self.browser ? await self.browser.storage.managed.get("noFiltering") : null}))()])',
-                                    'awaitPromise': True, 'returnByValue': True})
-                                print('uBOL worker diagnostics:', result, flush=True)
                 except Exception:
                     pass
                 self.fail(f'Chrome policy check timed out: {expression}: {last}\n'
@@ -89,7 +69,7 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                 return await wait_value(
                     f'chrome.management.get({extension_id}).then(info => '
                     '({enabled:info.enabled,mayDisable:info.mayDisable,version:info.version}))',
-                    lambda info: isinstance(info, dict) and info.get('enabled') is enabled,
+                    lambda info: isinstance(info, dict) and (enabled is None or info.get('enabled') is enabled),
                     timeout=180)
 
             async def check_filtering(options):
@@ -134,10 +114,17 @@ class AdblockChromeTests(unittest.IsolatedAsyncioTestCase):
                                               env={**os.environ, 'DISPLAY': ':97', 'CHROMIUM_DEVTOOLS_PORT': '9224'},
                                               stdout=log, stderr=log)
                     await wait_value('document.readyState', lambda state: state == 'complete')
+                    original_target = (await controller.get_page_target())['id']
                     configured = await asyncio.wait_for(ubol_config.configure(
                         state_path=root / 'ubol-managed-state.json', port=9224), timeout=180)
                     print(configured, flush=True)
+                    self.assertEqual((await controller.get_page_target())['id'], original_target)
                     await navigate('chrome://extensions/')
+                    if iteration == 4 and not (await extension_info(None))['enabled']:
+                        await value(f'chrome.management.setEnabled({extension_id}, true)')
+                        await extension_info(True)
+                        print(await asyncio.wait_for(ubol_config.configure(
+                            state_path=root / 'ubol-managed-state.json', port=9224), timeout=180), flush=True)
                     info = await extension_info(mode != 'off' and iteration != 5)
                     print(f'Installed uBOL: {info}; mode={mode}; iteration={iteration}', flush=True)
                     if mode != 'off' and iteration != 5:

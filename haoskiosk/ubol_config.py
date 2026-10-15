@@ -97,11 +97,11 @@ async def configure(policy_path=POLICY_PATH, state_path=STATE_PATH, port=9222):
                     info = await wait_value(f'chrome.management.get({extension_id})'
                                             '.then(info => ({enabled:info.enabled,version:info.version})).catch(() => null)')
                     if not info['enabled']:
-                        return 'uBOL: user disabled extension; settings left unchanged'
+                        return 'uBOL: extension is disabled; settings left unchanged'
                     await page.call('Page.navigate', {
                         'url': f'chrome-extension://{EXTENSION_ID}/dashboard.html?{MARKER}'})
                     await wait_value(f'chrome.runtime.id === {extension_id}')
-                    managed = await evaluate('chrome.storage.managed.get(null)')
+                    managed = await wait_value('chrome.storage.managed.get(null)')
                     if managed != expected:
                         raise RuntimeError('uBOL managed policy mismatch; check chrome://policy for conflicts')
 
