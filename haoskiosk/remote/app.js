@@ -632,6 +632,7 @@
         if (!text || /\s/.test(text)) throw new Error('Wpisz adres bez spacji.');
         const url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`);
         if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Dozwolone są adresy HTTP i HTTPS bez loginu.');
+        if (/^(localhost|.+\.localhost\.?|0\.0\.0\.0|127(\.\d{1,3}){3}|169\.254(\.\d{1,3}){2})$/i.test(url.hostname) || /^\[(::1?\]|::ffff:(7f|127\.)|fe80:)/i.test(url.hostname)) throw new Error('Adresy lokalne tego urządzenia są zablokowane ze względów bezpieczeństwa.');
         closeSheet(); launch(null, url.href);
       } catch (err) { error.textContent = err.message.startsWith('Failed') || err instanceof TypeError ? 'To nie wygląda na adres strony.' : err.message; }
     };

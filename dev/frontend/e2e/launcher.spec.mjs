@@ -60,6 +60,11 @@ test('browser tile asks for an address and rejects non-HTTP schemes', async ({ p
   await page.locator('#url-input').fill('javascript:alert(1)');
   await press(page, 'Enter');
   await expect(page.locator('.sheet .error')).toHaveText('Dozwolone są adresy HTTP i HTTPS.');
+  for (const local of ['localhost:9222/json', 'http://2130706433:8080/', '[::1]']) {
+    await page.locator('#url-input').fill(local);
+    await press(page, 'Enter');
+    await expect(page.locator('.sheet .error')).toHaveText('Adresy lokalne tego urządzenia są zablokowane ze względów bezpieczeństwa.');
+  }
   await page.locator('#url-input').fill('vod.tvp.pl');
   await press(page, 'Enter');
   await expect.poll(async () => (await mock('state')).currentUrl, { timeout: 8000 }).toBe('https://vod.tvp.pl/');

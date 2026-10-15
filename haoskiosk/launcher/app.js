@@ -686,6 +686,8 @@
     if (/^[a-z][a-z0-9+.-]*:/i.test(text) && !/^https?:\/\//i.test(text) && !/^[^/:]+:\d+(\/|$)/.test(text)) throw new Error('Dozwolone są adresy HTTP i HTTPS.');
     const url = new URL(/^https?:\/\//i.test(text) ? text : 'https://' + text);
     if (!['http:', 'https:'].includes(url.protocol) || !url.hostname || url.username || url.password) throw new Error('Wpisz adres HTTP lub HTTPS bez loginu i hasła.');
+    // URL() already normalises alternate IPv4 forms (0x7f.1, 2130706433); the backend re-checks.
+    if (/^(localhost|.+\.localhost\.?|0\.0\.0\.0|127(\.\d{1,3}){3}|169\.254(\.\d{1,3}){2})$/i.test(url.hostname) || /^\[(::1?\]|::ffff:(7f|127\.)|fe80:)/i.test(url.hostname)) throw new Error('Adresy lokalne tego urządzenia są zablokowane ze względów bezpieczeństwa.');
     return url.href;
   }
   function openUrlDialog() {

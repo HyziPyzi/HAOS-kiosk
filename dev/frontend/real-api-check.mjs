@@ -76,6 +76,24 @@ await step('Phone text command is parsed by the backend', async () => {
   await phone.locator('.history li').first().filter({ hasText: /Wykonano|Nie rozumiem|Nie udało/ }).waitFor();
   console.log('     "Pauza":', await phone.locator('.history li').first().textContent());
 });
+await step('Local/control URLs are refused by the UI and by the backend (S1)', async () => {
+  await phone.locator('.tab', { hasText: 'Pilot' }).click();
+  await phone.getByRole('button', { name: 'Strona' }).click();
+  await phone.locator('.sheet .kbd-input').fill('localhost:9222/json');
+  await phone.getByRole('button', { name: 'Otwórz', exact: true }).click();
+  await phone.locator('.sheet .op-error').filter({ hasText: 'Adresy lokalne' }).waitFor();
+  await phone.getByRole('button', { name: 'Anuluj' }).click();
+  // Bypass the UI check: the server must still refuse every alternate form.
+  for (const url of ['http://127.0.0.1:9222/json', 'http://2130706433:8080/', 'http://[::ffff:127.0.0.1]:8443/', 'http://localhost./']) {
+    const result = await phone.evaluate(async target => {
+      const r = await fetch('/api/v3/apps/launch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: target }) });
+      return { status: r.status, code: (await r.json()).error?.code };
+    }, url);
+    assert.equal(result.status, 400, `${url} -> ${JSON.stringify(result)}`);
+  }
+  const ok = await phone.evaluate(async () => (await fetch('/api/v3/apps/launch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: 'https://vod.tvp.pl/' }) })).status);
+  assert.equal(ok, 202);
+});
 await step('TV lists and revokes the phone; the phone returns to pairing', async () => {
   await tv.keyboard.press('Escape');
   await tv.locator('[data-key="top:settings"]').click();
