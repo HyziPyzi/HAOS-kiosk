@@ -12,6 +12,8 @@ Dokumentacja v3: [architektura](https://github.com/HyziPyzi/HAOS-kiosk/blob/main
 [kontrakt API](https://github.com/HyziPyzi/HAOS-kiosk/blob/main/docs/smart-tv-v3/API_CONTRACT.md),
 [HTTPS, zaufanie iOS i parowanie](https://github.com/HyziPyzi/HAOS-kiosk/blob/main/docs/smart-tv-v3/HTTPS.md),
 [aktualizacja, HA i rollback](https://github.com/HyziPyzi/HAOS-kiosk/blob/main/docs/smart-tv-v3/UPGRADE_ROLLBACK.md).
+[Wspólny raport i screenshoty](https://github.com/HyziPyzi/HAOS-kiosk/blob/main/docs/smart-tv-v3/REPORT.md)
+opisują wyniki developerskie i pozostałe testy sprzętowe.
 Wersja wymaga testów akceptacyjnych na fizycznym NUC-u i iPhone; sama obecność
 Widevine nie potwierdza odtwarzania Netflix/Max/Prime. Bazowy głos to komendy tekstowe
 z dyktowaniem klawiatury telefonu, opcjonalnie HA Assist text; bez audio STT w dodatku.
