@@ -343,7 +343,8 @@ class SmartTV:
         self.store.revoke(request["device"]["id"])
         await self.close_device(request["device"]["id"])
         response = web.json_response({"ok": True})
-        response.del_cookie(COOKIE, path="/", secure=True, httponly=True, samesite="Strict")
+        response.set_cookie(COOKIE, "", max_age=0, expires="Thu, 01 Jan 1970 00:00:00 GMT",
+                            path="/", secure=True, httponly=True, samesite="Strict")
         return response
 
     async def devices(self, _):
