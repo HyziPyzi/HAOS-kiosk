@@ -138,3 +138,40 @@ i915/Intel HD 520 acceleration and codec decoding, USB/touch on the NUC,
 Supervisor HDMI audio, Netflix/Max/Prime/Spotify account login and actual protected
 content license/playback, HDCP, long-duration playback, 4K/HDR.
 Virtual X11 EME negotiation does not establish service compatibility or playback quality.
+
+## Smart TV OS v3 verification
+
+The v3 backend suite runs with Python 3.13 + aiohttp (both Debian 3.11.16 and latest
+are covered). From the repository root:
+
+```sh
+PYTHONPATH=haoskiosk python3 -m unittest discover -s tests -p test_smart_tv.py -v
+```
+
+Tests generate a disposable TLS certificate and verify it through a trusted test
+CA context. OpenSSL must be installed. HTTP/TLS/WS and SQLite are real; HA, Panasonic,
+X input and CDP are explicit fixtures, with separate real HTTP adapter tests. No
+physical playback, HDMI audio, USB HID or iPhone Safari result is implied.
+
+For frontend mock/E2E tools, use `dev/frontend` (development only, never copied to
+the add-on image): `npm ci`, `npm run check`, `npm run test:e2e`. Playwright uses
+system Chrome by default. Set `E2E_SCREENSHOT_DIR` to retain screenshots. The mock
+has explicit test hooks and is never a production server or security boundary.
+
+For combined frontend + actual Python API/storage, run:
+
+```sh
+python3 dev/backend/serve.py --mock-adapters --port 8080
+```
+
+This harness announces its simulated HA/CDP/X adapters and uses a temporary DB.
+`--assets PATH_TO_HAOSKIOSK` can load assets from the frontend worktree. To serve
+phone sessions, add `--remote-port 8443 --cert LAB_CERT --key LAB_KEY`; there is no
+cleartext session fallback. Use isolated development certificates, never real CA
+private keys. Production trusted HTTPS/iOS steps are in
+[HTTPS.md](docs/smart-tv-v3/HTTPS.md).
+
+The existing Docker/X11 suite above remains necessary for Chrome, extension,
+profile, startup and Ctrl+Alt+H regressions. GitHub Actions builds the actual amd64
+image. Hardware acceptance and rollback procedure:
+[UPGRADE_ROLLBACK.md](docs/smart-tv-v3/UPGRADE_ROLLBACK.md).

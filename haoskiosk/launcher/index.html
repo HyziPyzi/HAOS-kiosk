@@ -1,48 +1,36 @@
 <!doctype html>
-<html lang="pl">
+<html lang="pl" data-motion="full" data-wallpaper="dusk">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TV Home · HAOS Kiosk</title>
+  <title>Smart TV · Ekran główny</title>
+  <link rel="preload" href="/launcher/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/launcher/style.css">
   <script src="/launcher/app.js" defer></script>
 </head>
 <body>
-  <main class="shell">
-    <header class="topbar">
-      <div class="brand"><span class="brand-mark" aria-hidden="true">▦</span> TV HOME</div>
-      <span class="home-label">Strona główna</span>
-      <time id="clock" aria-label="Aktualna godzina"></time>
-    </header>
-    <section class="intro" aria-labelledby="title">
-      <p class="eyebrow">DOBRZE BYĆ W DOMU</p>
-      <h1 id="title">Twój wieczór. <span>Twój wybór.</span></h1>
-      <p class="subtitle">Filmy, ulubione kanały i Twój dom. Wszystko w jednym miejscu.</p>
-    </section>
-    <section class="apps" aria-labelledby="apps-title">
-      <div class="section-heading"><h2 id="apps-title">Twoje aplikacje</h2><span>Wybierz i oglądaj</span></div>
-      <div id="tiles" class="tiles" aria-label="Aplikacje TV">
-        <button class="tile netflix" data-app="netflix" data-url="https://www.netflix.com/" aria-label="Netflix"><span class="wordmark">NETFLIX</span><span class="tile-caption">Filmy i seriale</span></button>
-        <button class="tile max" data-app="max" data-url="https://play.max.com/" aria-label="Max"><span class="wordmark">max</span><span class="tile-caption">Historie, które zostają</span></button>
-        <button class="tile prime" data-app="prime" data-url="https://www.primevideo.com/" aria-label="Prime Video"><span class="wordmark">prime video<span class="prime-smile" aria-hidden="true">⌣</span></span><span class="tile-caption">Odkryj coś nowego</span></button>
-        <button class="tile youtube" data-app="youtube" data-url="https://www.youtube.com/" aria-label="YouTube"><span class="wordmark"><span class="play" aria-hidden="true">▶</span> YouTube</span><span class="tile-caption">Twoje kanały i muzyka</span></button>
-        <button class="tile ha" data-app="ha" aria-label="Home Assistant"><span class="wordmark"><span class="house" aria-hidden="true">⌂</span> Home Assistant</span><span class="tile-caption">Twój inteligentny dom</span></button>
-        <button class="tile browser" data-app="browser" aria-label="Przeglądarka WWW"><span class="wordmark"><span class="globe" aria-hidden="true">◎</span> WWW</span><span class="tile-caption">Otwórz dowolną stronę</span></button>
+  <div class="backdrop" aria-hidden="true"><div class="glow" id="glow"></div></div>
+  <div class="safe" id="safe">
+    <main id="screen-home" class="screen" aria-label="Ekran główny">
+      <header class="topbar">
+        <button class="profile-chip" id="profile-chip" data-nav data-key="top:profile" aria-haspopup="dialog"></button>
+        <div class="topbar-actions" id="topbar-actions"></div>
+      </header>
+      <div class="scroller" id="home-scroller" data-scroll>
+        <section class="hero" aria-label="Godzina i pogoda">
+          <time class="clock" id="clock"></time>
+          <p class="date" id="date"></p>
+          <p class="ambient" id="ambient"></p>
+        </section>
+        <div class="rows" id="rows"></div>
       </div>
-    </section>
-    <footer class="footer"><span><kbd>↑ ↓ ← →</kbd> Wybierz <kbd>OK / Enter</kbd> Otwórz <kbd>Wstecz</kbd> Cofnij</span><span><kbd>Ctrl + Alt + H</kbd> Wróć tutaj z każdej strony</span></footer>
-    <p id="status" class="status" role="status" aria-live="polite"></p>
-  </main>
-  <dialog id="url-dialog" aria-labelledby="url-title">
-    <form id="url-form">
-      <p class="eyebrow">PRZEGLĄDARKA WWW</p>
-      <h2 id="url-title">Dokąd chcesz przejść?</h2>
-      <label for="url-input">Adres strony</label>
-      <input id="url-input" name="url" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="np. youtube.com" required maxlength="2048">
-      <p id="url-error" class="error" role="alert"></p>
-      <p class="dialog-help">Bez http:// użyjemy HTTPS. Klawiatura ekranowa: <kbd>Ctrl + Alt + O</kbd>, jeśli jest włączona w konfiguracji dodatku.</p>
-      <div class="dialog-actions"><button id="url-cancel" type="button">Anuluj</button><button id="url-open" type="submit">Otwórz stronę <span aria-hidden="true">↗</span></button></div>
-    </form>
-  </dialog>
+    </main>
+    <section id="screen-apps" class="screen" aria-label="Aplikacje" hidden></section>
+    <section id="screen-dom" class="screen" aria-label="Dom" hidden></section>
+    <section id="screen-settings" class="screen" aria-label="Ustawienia" hidden></section>
+  </div>
+  <div id="layers"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <noscript><p class="noscript">Ekran główny wymaga JavaScriptu. Naciśnij Ctrl + Alt + H, aby odświeżyć.</p></noscript>
 </body>
 </html>
