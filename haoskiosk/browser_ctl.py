@@ -41,6 +41,7 @@ VALID_URL_REGEX = re.compile(
 CHROME_DIAGNOSTIC_URLS = {
     "chrome://version", "chrome://components", "chrome://gpu",
     "chrome://media-internals", "chrome://settings/content/protectedContent",
+    "chrome://policy", "chrome://extensions",
 }
 
 

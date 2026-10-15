@@ -15,7 +15,7 @@ Debian/glibc i Google Chrome zwiększają szansę zgodności z DRM. Widevine poc
 3. Podłącz telewizor do HDMI NUC-a, włącz TV i wybierz odpowiednie wejście **przed startem aplikacji**. Podłącz klawiaturę/mysz lub ekran dotykowy USB.
 4. Otwórz **Ustawienia → Apps → sklep → ⋮ → Repositories** (w starszym interfejsie: Dodatki → Sklep → Repozytoria).
 5. Wklej **https://github.com/HyziPyzi/HAOS-kiosk** i odśwież sklep.
-6. Wybierz **HAOS Kiosk Display - Chrome DRM**, wersja **2.1.0**, i zainstaluj. Pierwszy build pobiera pakiety i może potrwać kilka minut. Potrzebny jest dostęp do internetu i wolne miejsce na dysku.
+6. Wybierz **HAOS Kiosk Display - Chrome DRM**, wersja **2.2.0**, i zainstaluj. Pierwszy build pobiera pakiety i może potrwać kilka minut. Potrzebny jest dostęp do internetu i wolne miejsce na dysku.
 7. Zatrzymaj oryginalny kiosk przed uruchomieniem tego forka. Oba repo mogą być dodane do sklepu, ale dwa Xorg nie mogą jednocześnie sterować tym samym ekranem. Slug `haoskiosk_chrome` i prywatny katalog konfiguracji są oddzielne od oryginału.
 8. Zapisz konfigurację poniżej, uruchom aplikację i sprawdź zakładkę **Logi**. Po weryfikacji włącz automatyczny start.
 
@@ -26,6 +26,7 @@ Zmień odpowiednie pola istniejącej konfiguracji; zachowaj pozostałe opcje z f
 ```yaml
 browser_engine: chrome
 start_page: launcher
+adblock_mode: optimal
 ha_url: http://localhost:8123
 ha_dashboard: ""
 screen_timeout: 0
@@ -46,6 +47,52 @@ debug_mode: false
 `output_number` wybiera N-te **podłączone** wyjście zgłoszone przez xrandr. Przy jednym TV użyj `1`. Przy dwóch ekranach sprawdź listę w logach i ewentualnie wybierz `2`. Pozostałe podłączone wyjścia są wyłączane. Wybrany output i pełny wynik xrandr są logowane.
 
 `screen_timeout: 0` wyłącza automatyczne wygaszanie. `browser_refresh` dotyczy tylko stron HA; Netflix, Max, Prime, Spotify i YouTube nie są cyklicznie przeładowywane przez watchdog. `0` całkowicie wyłącza okresowe przeładowanie.
+
+## Blokowanie reklam — uBlock Origin Lite
+
+Wersja **2.2.0** instaluje darmowe, oficjalne [uBlock Origin Lite (Manifest V3)](https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh), ID `ddkjiahejlhfcafbddmgiahcphecmpfh`. Chrome sam pobiera i aktualizuje rozszerzenie z Chrome Web Store. Nie pobieramy CRX skryptem, nie modyfikujemy rozszerzenia i nie dodajemy drugiej przeglądarki.
+
+W konfiguracji dodatku wybierz `adblock_mode`:
+
+| Wartość | Działanie |
+| --- | --- |
+| `off` | Całe rozszerzenie jest wyłączone zasadą Chrome `blocked`; pozostaje w profilu wraz z danymi. Przy pierwszym starcie w tym trybie nie jest instalowane. |
+| `optimal` | Domyślne Optimal uBOL: filtrowanie sieciowe i kosmetyczne zgodnie z tym trybem. |
+| `complete` | Complete uBOL: szersze filtrowanie kosmetyczne; może częściej wymagać wyjątków dla stron. |
+
+Dla Optimal i Complete używamy `ExtensionSettings → installation_mode: normal_installed`, więc możesz ręcznie wyłączyć rozszerzenie w `chrome://extensions`. Wyłączenie użytkownika pozostaje po restarcie Chrome. Aby je ponownie uruchomić, włącz je tam ręcznie. Po zmianie opcji dodatku zapisz konfigurację i **uruchom dodatek ponownie**. Powrót z `off` ustawia ponownie `normal_installed`; jeśli wcześniej sam wyłączyłeś rozszerzenie, sprawdź jego przełącznik.
+
+`adblock_excluded_domains` to edytowalna lista hostów bez filtrowania, np.:
+
+```yaml
+adblock_mode: optimal
+adblock_excluded_domains:
+  - netflix.com
+  - max.com
+  - hbomax.com
+  - primevideo.com
+  - amazon.com
+  - amazon.de
+  - amazon.co.uk
+  - amazon.pl
+  - vod.example.org
+```
+
+Pierwsze osiem domen to lista domyślna. Wyjątki obejmują również ich subdomeny, np. `play.max.com` i `www.netflix.com`. Wpisuj same domeny ASCII/punycode, bez `https://`, ścieżek, portów, `*.` ani dyrektyw uBOL. Lista zastępuje domyślne wyjątki; `[]` usuwa wyjątki zarządzane przez dodatek. Ręczne wyjątki zapisane w uBOL mogą pozostać. Jeśli używasz Prime Video pod inną domeną regionalną Amazon, dodaj ją. Wyjątek `amazon.com` obejmuje także sklep Amazon. Strony logowania, osadzone odtwarzacze i oddzielne domeny usług mogą wymagać dodatkowych wyjątków. Najpewniejsza diagnostyka problemu VOD to chwilowe `off`.
+
+Polityka jest generowana przy każdym starcie **przed Chrome**, atomowo do `/etc/opt/chrome/policies/managed/haoskiosk-ublock-origin-lite.json` (root, tryb 0644). Zawiera tylko ustawienia tego rozszerzenia: `ExtensionSettings` z oficjalnym HTTPS update URL Google oraz `3rdparty.extensions.<ID>` z `defaultFiltering`, `noFiltering` i `disableFirstRunPage`. Nie blokujemy panelu ustawień uBOL. Pozostałe pliki polityk są zachowane; konfliktujące zasady administratora trzeba sprawdzić w `chrome://policy`. Opcje zapisuje Supervisor, a plik polityki jest odtwarzany także po aktualizacji kontenera. Profil `/config/chromium-profile`, logowania, Widevine, launcher, HDMI, GPU i pilot korzystają z dotychczasowych mechanizmów.
+
+### Sprawdzenie instalacji i restartu
+
+1. Uruchom dodatek z dostępem do internetu. W logach sprawdź komunikat `Chrome uBlock Origin Lite policy`, tryb i liczbę wyjątków. To potwierdza zapis konfiguracji, **nie instalację rozszerzenia**.
+2. Otwórz `chrome://policy` przez opisane niżej `/launch_url`. Wybierz przeładowanie zasad; sprawdź `ExtensionSettings` i zasady uBlock Origin Lite bez błędów. Instalacja z Web Store i odczyt `storage.managed` są asynchroniczne — mogą potrwać.
+3. Otwórz `chrome://extensions`: sprawdź ID, wersję i włączony przełącznik. W „Opcjach rozszerzenia” sprawdź Optimal/Complete i wyjątki. Jeśli instalacji brakuje, sprawdź dostęp DNS/HTTPS do usług Google/Web Store, logi Chrome i konflikty polityk; nie kasuj profilu.
+4. Sprawdź zwykłą stronę i wybrany VOD, następnie wykonaj normalny restart dodatku. Potwierdź zachowane logowania, rozszerzenie, tryb i wyjątki. Ręcznie wyłącz rozszerzenie, ponów restart i sprawdź, że pozostaje wyłączone.
+5. Sprawdź `off`, potem powrót do Optimal/Complete, rzeczywiste odtwarzanie chronionego filmu i HDMI audio. Przy błędzie VOD dodaj domenę lub ustaw `off`, uruchom dodatek ponownie i porównaj wynik.
+
+**Nie gwarantujemy usunięcia reklam z YouTube ani zgodności filtrowania ze wszystkimi serwisami DRM.** Blokowanie nie zastępuje subskrypcji i nie zmienia uprawnień do treści. Automatyczny test sprawdza instalację oficjalnego MV3, rzeczywisty odczyt polityk przez rozszerzenie, efektywne tryby/wyjątki oraz restart w wirtualnym X11; fizyczny NUC i licencje VOD wymagają osobnego sprawdzenia.
+
+Źródła konfiguracji: [oficjalne managed settings uBOL](https://github.com/uBlockOrigin/uBOL-home/wiki/Managed-settings), [polityki rozszerzeń na Linuksie](https://www.chromium.org/administrators/configuring-policy-for-extensions/), [ExtensionSettings i normal_installed](https://www.chromium.org/administrators/policy-list-3/extension-settings-full/).
 
 ## TV Launcher i pilot HID
 

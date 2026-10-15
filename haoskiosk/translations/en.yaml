@@ -42,6 +42,16 @@ configuration:
     items:
       launcher: "TV Launcher"
       home_assistant: "Home Assistant dashboard"
+  adblock_mode:
+    name: "Ad blocking"
+    description: "Official uBlock Origin Lite via Chrome policy. Optimal is recommended; Complete adds broader cosmetic filtering. Off disables the extension. Restart the app after changes."
+    items:
+      off: "Off"
+      optimal: "Optimal"
+      complete: "Complete"
+  adblock_excluded_domains:
+    name: "Sites without ad blocking"
+    description: "Bare hostnames, including subdomains (e.g. netflix.com, max.com, primevideo.com). Replace the list to customize; [] means no managed exceptions. Restart the app after changes."
   screen_timeout:
     name: "Screen Timeout"
     description: "Time in seconds until screen blanks; 0 for never [Default: 0]"

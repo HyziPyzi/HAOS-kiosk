@@ -1,3 +1,26 @@
+# uBlock Origin Lite 2.2.0 validation — 2026-10-15
+
+Four policy unit tests pass locally: defaults for upgraded installations, all
+three modes, hostname normalization/validation, empty/custom exceptions, atomic
+policy replacement, preservation of unrelated policies and invalid-input handling.
+Bash syntax and Python/JavaScript syntax are checked locally as well.
+
+The container suite now includes an online test with the official Google Chrome
+and production flags in Xvfb. Chrome itself installs the official Web Store
+extension using the native Linux policy. The test checks Manifest V3, actual
+managed storage, effective Optimal/Complete, VOD/custom/subdomain exceptions,
+exception removal, enabled rulesets, extension data across normal restarts,
+policy off/on transitions, and user disablement across another restart.
+Installation has a bounded 180-second wait and requires Google/Web Store access;
+an unavailable store fails the test rather than substituting an unofficial CRX.
+The kiosk policy is restored/removed after this test; existing launcher, profile,
+EME, audio and REST regression tests run in the same container suite.
+
+Full container/CI results for 2.2.0 are recorded after the workflow completes.
+Local Docker Desktop is currently unavailable. Physical NUC HDMI/GPU/audio,
+remote input and authenticated DRM service playback still require hardware
+validation. No YouTube ad-removal claim is made.
+
 # TV Launcher 2.1.0 validation — 2026-10-14
 
 Passed in [GitHub Actions](https://github.com/HyziPyzi/HAOS-kiosk/actions/runs/38623977297)

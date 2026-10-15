@@ -18,7 +18,7 @@ jobs:
         run: docker run --rm --entrypoint hadolint -v "$PWD:/src:ro" hadolint/hadolint:latest-alpine --ignore DL3008 /src/haoskiosk/Dockerfile
       - name: Build local test environment
         run: docker build -f tests/Dockerfile -t haoskiosk-chrome:checks .
-      - name: Syntax, security, X11 Chrome, profile persistence and Widevine EME
+      - name: Policies, Web Store install, X11 Chrome, launcher, profile restart and Widevine EME
         run: |
           mkdir -p "$RUNNER_TEMP/launcher-screenshots"
           docker run --rm -v "$PWD:/src:ro" -v "$RUNNER_TEMP/launcher-screenshots:/screenshots" -e LAUNCHER_SCREENSHOT_DIR=/screenshots haoskiosk-chrome:checks

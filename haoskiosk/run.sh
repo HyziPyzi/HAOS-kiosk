@@ -268,6 +268,10 @@ EOF
 }
 
 resolve_browser_binary
+if ! python3 /chrome_policy.py; then
+    bashio::log.error "Cannot configure Chrome adblock policy; check adblock options and policy directory permissions"
+    exit 1
+fi
 bashio::log.info "Using browser engine: $BROWSER_ENGINE [$BROWSER]"
 bashio::log.info "Chrome version: $($BROWSER --version)"
 bashio::log.info "Chrome binary: $BROWSER; architecture: $(uname -m)"

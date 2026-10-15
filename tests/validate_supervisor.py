@@ -11,4 +11,9 @@ options = AppOptions(None, config['schema'], config['name'], config['slug']).val
 assert options['browser_engine'] == 'chrome'
 assert options['start_page'] == 'launcher'
 assert options['audio_sink'] == 'auto'
+assert options['adblock_mode'] == 'optimal'
+assert 'netflix.com' in options['adblock_excluded_domains']
+for mode in ('off', 'optimal', 'complete'):
+    AppOptions(None, config['schema'], config['name'], config['slug']).validate(
+        {**config['options'], 'adblock_mode': mode, 'adblock_excluded_domains': []})
 print('PASS: official stable Supervisor app schema and default options')

@@ -3,7 +3,7 @@ name: "HAOS Kiosk Display - Chrome DRM"
 description: |
   Physical HDMI kiosk with official Google Chrome Stable on Debian/glibc.
   Experimental amd64 fork for Intel graphics and Chrome-managed Widevine.
-version: "2.1.0"
+version: "2.2.0"
 slug: "haoskiosk_chrome"
 url: "https://github.com/HyziPyzi/HAOS-kiosk"
 stage: experimental
@@ -73,6 +73,16 @@ options:
   browser_refresh: 600
   browser_engine: "chrome"
   start_page: "launcher"
+  adblock_mode: "optimal"
+  adblock_excluded_domains:
+    - netflix.com
+    - max.com
+    - hbomax.com
+    - primevideo.com
+    - amazon.com
+    - amazon.de
+    - amazon.co.uk
+    - amazon.pl
   screen_timeout: 0
   output_number: 1
   dark_mode: true
@@ -116,6 +126,9 @@ schema:
   browser_refresh: int(0,)
   browser_engine: list(chrome|chromium)
   start_page: list(launcher|home_assistant)
+  adblock_mode: list(off|optimal|complete)
+  adblock_excluded_domains:
+    - str
   screen_timeout: int(0,)
   output_number: int(1,2)
   dark_mode: bool

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.2.0 — 2026-10-15
+
+- Official uBlock Origin Lite MV3 installed/updated by native Google Chrome Linux policy from Chrome Web Store.
+- Configurable `adblock_mode: off|optimal|complete` (Optimal default), with `normal_installed` so users can disable the extension.
+- Editable `adblock_excluded_domains`, with Netflix, Max and Prime/Amazon defaults through uBOL managed `noFiltering`.
+- Atomic kiosk-owned policy regenerated before Chrome startup; off disables the extension without deleting its profile data.
+- Chrome policy/extensions diagnostic pages available through the existing authenticated URL command.
+- Policy unit tests and online Chrome install, managed storage, effective mode/exclusion and restart checks.
+- Existing Chrome profile, Widevine, launcher, HDMI/GPU/audio and HID mechanisms retained. No YouTube ad removal or universal DRM compatibility guarantee.
+
 ## 2.1.0 — 2026-10-14
 
 - Local TV Launcher with six large tiles, dark 1080p layout and HID keyboard navigation.

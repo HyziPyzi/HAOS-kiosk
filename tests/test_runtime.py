@@ -18,7 +18,8 @@ class ValidationTests(unittest.TestCase):
     def test_urls_and_origin(self):
         for url in ('https://www.netflix.com/', 'https://play.max.com/',
                     'https://www.primevideo.com/', 'https://open.spotify.com/',
-                    'chrome://components', 'chrome://gpu', 'chrome://version'):
+                    'chrome://components', 'chrome://gpu', 'chrome://version',
+                    'chrome://policy', 'chrome://extensions'):
             self.assertTrue(browser.is_valid_url(url))
             self.assertEqual(browser.normalize_url(url), url)
         for url in ('file:///etc/passwd', 'javascript:alert(1)',
