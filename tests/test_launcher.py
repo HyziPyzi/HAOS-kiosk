@@ -117,7 +117,7 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
             launcher_url = 'http://127.0.0.1:8766/launcher'
             controller = browser.ChromiumController(port=9223)
             async def value(expression):
-                result = await controller.evaluate(expression)
+                result = await controller.evaluate(expression, await_promise=True)
                 self.assertNotIn('exceptionDetails', result, result)
                 return watchdog.extract_evaluate_value(result)
             async def wait_for(expression):
