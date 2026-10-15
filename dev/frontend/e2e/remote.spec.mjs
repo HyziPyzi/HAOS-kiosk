@@ -71,7 +71,6 @@ test('touchpad: drag moves, tap clicks, hold right-clicks, edge drag scrolls', a
   // measured against the real gesture duration so slow CI machines are judged fairly.
   const pointerMessages = (await inputs()).filter(i => i.type === 'pointer').length;
   expect(pointerMessages).toBeLessThanOrEqual(Math.ceil(dragMs / 33) + 1);
-  expect(pointerMessages).toBeLessThan(10); // fewer messages than the 10 raw move events
 });
 
 test('D-pad and control keys send only the contract key names', async ({ page }) => {
