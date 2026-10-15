@@ -63,6 +63,7 @@ async def configure(policy_path=POLICY_PATH, state_path=STATE_PATH, port=9222):
         async with client.ws_connect(version['webSocketDebuggerUrl']) as websocket:
             browser = ChromiumPageSession(websocket)
             target_id = None
+            original_target = (await controller.get_page_target())['id']
             try:
                 created = await browser.call('Target.createTarget', {
                     'url': f'chrome://extensions/?{MARKER}', 'background': True})
@@ -149,6 +150,7 @@ async def configure(policy_path=POLICY_PATH, state_path=STATE_PATH, port=9222):
             finally:
                 if target_id is not None:
                     await browser.call('Target.closeTarget', {'targetId': target_id})
+                    await browser.call('Target.activateTarget', {'targetId': original_target})
 
 
 async def main():

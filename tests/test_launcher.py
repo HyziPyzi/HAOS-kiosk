@@ -125,6 +125,7 @@ class LauncherChromeTests(unittest.IsolatedAsyncioTestCase):
             async def key(name):
                 codes = {'ArrowRight': 39, 'ArrowLeft': 37, 'ArrowUp': 38, 'ArrowDown': 40, 'Enter': 13, 'Backspace': 8, 'Escape': 27, 'BrowserBack': 166}
                 async def worker(page, _):
+                    await page.call('Page.bringToFront')
                     params = {'key': name, 'windowsVirtualKeyCode': codes[name]}
                     await page.call('Input.dispatchKeyEvent', {'type': 'keyDown', **params})
                     await page.call('Input.dispatchKeyEvent', {'type': 'keyUp', **params})
